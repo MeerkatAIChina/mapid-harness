@@ -35,7 +35,7 @@ CHECKER_TO_DEFECTS: dict[str, list[str]] = {
     "ledger_freshness": ["GD-15"],
     "unsourced_precise": ["GD-06"],
     "numeric_consistency": ["GD-07", "GD-09"],
-    "figure_companion": [],
+    "figure_companion": ["GD-17"],
     "structure": ["GD-12", "GD-16"],
 }
 

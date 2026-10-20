@@ -6,7 +6,7 @@
 ## 目录
 
 - `manifest.json`：全部缺陷的索引（id / 分类 / 预期检出层 / 证据指针 / 素材文件）
-- `text_injectable/`：**可文本注入**的缺陷（16 项），每项一个文件：描述 + 注入素材 + 预期检出层
+- `text_injectable/`：**可文本注入**的缺陷（17 项，含 R2 增补的 GD-17 图表配套型），每项一个文件：描述 + 注入素材 + 预期检出层
 - `process_checklist/`：**过程性缺陷**（4 项）——无法文本注入，由对应机制的验收项覆盖
 - `inject.py`：把 text_injectable 缺陷注入固定宿主，产出「带雷宿主」+ ground truth 标注
 - `run_checker_regression.py`：检查器层回归脚本——按 manifest 对宿主跑 report_qa 全量检查，逐缺陷判定 TP/FP
