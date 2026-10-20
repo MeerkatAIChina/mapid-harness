@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from langchain.agents.middleware.types import ModelRequest
@@ -72,3 +73,21 @@ def test_middleware_wrap_calls_handler_with_injected_request():
     req = _request(system_message=SystemMessage(content="你是助手。"))
     assert mw.wrap_model_call(req, handler) == "ok"
     assert "当前日期：" in seen[0].system_message.content
+
+
+def test_middleware_logs_on_injection(caplog):
+    """实证日志：真实注入时写 info，幂等跳过时不写（R1 遗留项②）。"""
+    mw = DateInjectionMiddleware()
+    handler = lambda request: "ok"  # noqa: E731
+
+    with caplog.at_level(logging.INFO, logger="octop_harness.middleware.date_injection"):
+        mw.wrap_model_call(_request(system_message=SystemMessage(content="你是助手。")), handler)
+    assert "injected current date" in caplog.text
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="octop_harness.middleware.date_injection"):
+        mw.wrap_model_call(
+            _request(system_message=SystemMessage(content="你已知道当前日期：2026-10-20。")),
+            handler,
+        )
+    assert "injected current date" not in caplog.text

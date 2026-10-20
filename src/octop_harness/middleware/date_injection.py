@@ -57,8 +57,16 @@ def inject_current_date(request: Any, *, now: datetime | None = None) -> Any:
 class DateInjectionMiddleware(AgentMiddleware):
     """每次模型调用前注入当前日期（含星期）到 system message。"""
 
+    @staticmethod
+    def _inject_logged(request: Any) -> Any:
+        """注入并记录日志（实证用：确认 middleware 级注入真实发生，见 R1 遗留项②）。"""
+        new_request = inject_current_date(request)
+        if new_request is not request:
+            logger.info("date_injection: injected current date into system message")
+        return new_request
+
     def wrap_model_call(self, request: Any, handler: Any) -> Any:
-        return handler(inject_current_date(request))
+        return handler(self._inject_logged(request))
 
     async def awrap_model_call(self, request: Any, handler: Any) -> Any:
-        return await handler(inject_current_date(request))
+        return await handler(self._inject_logged(request))
