@@ -188,6 +188,18 @@ ignore = [
 # i18n: full-width punctuation in user-facing zh strings / comments
 "src/octop_harness/slash/core.py" = ["RUF001"]
 "src/octop_harness/middleware/memory.py" = ["RUF003"]
+# Meerkat: 中文 docstring / 字符串 / 注释的全角标点
+"src/octop_harness/report_qa/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"src/octop_harness/report_tools.py" = ["RUF001", "RUF002", "RUF003"]
+"src/octop_harness/middleware/patient_retry.py" = ["RUF001", "RUF002", "RUF003"]
+"src/octop_harness/middleware/date_injection.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/report_qa/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/report_tools/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/unit/test_patient_retry.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/unit/test_date_injection.py" = ["RUF001", "RUF002", "RUF003"]
+"scripts/reset_agent_memory.py" = ["RUF001", "RUF002", "RUF003"]
+"docs/meerkat/**/run_checker_regression.py" = ["RUF001", "RUF002", "RUF003", "PLR0912"]
+"docs/meerkat/**/inject.py" = ["RUF001", "RUF002", "RUF003"]
 "src/octop_harness/context_usage.py" = ["PLR0912"]
 
 [tool.ruff.lint.isort]
