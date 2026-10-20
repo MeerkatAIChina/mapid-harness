@@ -1,0 +1,2740 @@
+{
+  "summary": {
+    "total_findings": 265,
+    "by_check": {
+      "figure_companion": 135,
+      "ledger_freshness": 9,
+      "structure": 1,
+      "unsourced_precise": 120
+    },
+    "by_severity": {
+      "high": 120,
+      "low": 135,
+      "medium": 10
+    }
+  },
+  "high_risk_data": [
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 25,
+      "evidence": "欧普照明成立于1996年，2016年8月在上海证券交易所主板上市，是中国照明行业最早上市的民族品牌之一。上市以来，欧普照明凭借\"品牌+渠道+研发\"三轮驱动的战略，在家居照明领域建立了显著的先发优势。截至2026年，欧普照明已拥有超过14万家终端销售网点，业务覆盖亚太、欧洲、中东等70多个国家和地区，专利数量超过3,800项，连续9年入围世界品牌实验室\"中国500最具价值品牌\"榜单。"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 64,
+      "evidence": "| 注册资本 | 74,228万元 |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 65,
+      "evidence": "| 总股本 | 74,227.9749万股 |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 68,
+      "evidence": "| 员工人数 | 约6,000人 |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 69,
+      "evidence": "| 专利数量 | 3,800+项 |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 70,
+      "evidence": "| 终端网点 | 140,000+家 |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 79,
+      "evidence": "| 中山欧普投资 | 47.291% |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 80,
+      "evidence": "| 杨耀尧 | 16.576% |"
+    },
+    {
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 81,
+      "evidence": "| 马建辉 | 16.110% |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 11,
+      "evidence": "全球照明市场经过数十年的发展，已形成成熟且规模庞大的产业格局。根据行业研究机构LEDinside、Grand View Research等发布的数据，2024年全球照明市场规模约为**2,800–3,000亿美元**，其中LED照明产品占比已超过**75%**，成为绝对主流。"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 82,
+      "evidence": "中国是全球最大的照明产品生产国和消费国。根据中国照明电器协会（CLA）及行业研究机构的数据，2024年中国照明市场规模约为**3,500–3,800亿元人民币**，其中LED照明产品占比约**75–80%**。"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 88,
+      "evidence": "| 2019 | ~3,200 | ~5% | ~60% | LED替代加速 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 89,
+      "evidence": "| 2020 | ~3,300 | ~3% | ~65% | 疫情短期冲击 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 90,
+      "evidence": "| 2021 | ~3,400 | ~3% | ~70% | 疫后复苏 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 91,
+      "evidence": "| 2022 | ~3,500 | ~3% | ~73% | 地产下行初现 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 92,
+      "evidence": "| 2023 | ~3,550 | ~1.4% | ~76% | 增速放缓 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 93,
+      "evidence": "| 2024 | ~3,600 | ~1.4% | ~78% | 存量市场特征明显 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 248,
+      "evidence": "| 白炽灯 | 1879–2010s | 钨丝灯泡 | 8–15 | 1,000 | 基准（1x） |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 249,
+      "evidence": "| 卤素灯 | 1959–2010s | 卤素灯泡 | 15–25 | 2,000–4,000 | 2–3x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 250,
+      "evidence": "| 荧光灯 | 1938–2020s | 日光灯管 | 50–70 | 8,000–15,000 | 5–8x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 251,
+      "evidence": "| CFL节能灯 | 1978–2020s | 紧凑型荧光灯 | 50–70 | 8,000–10,000 | 5–8x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 252,
+      "evidence": "| LED（第一代） | 2000s–2010s | LED球泡灯 | 60–100 | 25,000 | 8–12x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 253,
+      "evidence": "| LED（第二代） | 2010s–2020s | LED面板灯/筒灯 | 100–150 | 30,000–50,000 | 12–18x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 254,
+      "evidence": "| LED（第三代） | 2020s–至今 | 高光效LED/MiniLED | 150–200+ | 50,000+ | 18–25x |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 255,
+      "evidence": "| 智能照明/HCL | 2020s–至今 | 可调色温/色彩LED | 150–200+ | 50,000+ | 18–25x + 智能控制 |"
+    },
+    {
+      "file": "chapters/02_行业全景.md",
+      "line": 297,
+      "evidence": "- **可调色温（Tunable White）**：色温范围从2,700K（暖白）到6,500K（冷白）"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 15,
+      "evidence": "**1997年**，欧普开始投产吸顶灯产品，由单一产品结构向多元化转变。这一年接到的最大订单——为广州白天鹅宾馆生产5,000支节能灯——成为欧普早期发展的重要里程碑。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 39,
+      "evidence": "**2013年**，欧普电商迅速发展，\"双十一\"销售额达到6,018万元；同年，第一条LED自动化生产线投入生产。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 48,
+      "evidence": "- **8月19日**：欧普照明成功登陆上海证券交易所主板，正式挂牌上市。股票简称\"欧普照明\"，股票代码603515.SH。上市募资约12.6亿元，用于生产基地建设、营销网络升级和研发中心建设。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 49,
+      "evidence": "- **11月**：欧普以2.046亿成交额，实现双11四连冠。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 60,
+      "evidence": "- **11月**：欧普商用工业产品鹏旭LED天棚灯斩获日本G-Mark（优良设计奖），成为\"双料王\"。同年双十一官方直销量以3.67亿成绩6度蝉联冠军。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 102,
+      "evidence": "| 中山欧普投资有限公司 | 47.291% | 控股股东 | 马氏家族控股平台 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 103,
+      "evidence": "| 杨耀尧 | 16.576% | 自然人/创始人 | 法人代表 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 104,
+      "evidence": "| 马建辉 | 16.110% | 自然人/创始人 | 董事长 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 105,
+      "evidence": "| 香港中央结算有限公司（沪股通） | 3.058% | 外资/QFII | 北向资金 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 176,
+      "evidence": "| 吊灯 | 北欧/现代/中式吊灯 | 中高端 | 300–2,000元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 179,
+      "evidence": "| 风扇灯 | 隐形风扇灯 | 中高端 | 500–2,000元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 180,
+      "evidence": "| 浴霸 | 风暖浴霸 | 大众→中高端 | 300–1,500元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 181,
+      "evidence": "| 晾衣机 | 智能晾衣机 | 中高端 | 1,000–3,000元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 233,
+      "evidence": "- **网点数量**：超过140,000家终端销售网点"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 273,
+      "evidence": "> - 2026H1 ROE：3.83%"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 326,
+      "evidence": "| 2023 | 10派5元 | 0.5 | ~3.71亿元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 327,
+      "evidence": "| 2024 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 328,
+      "evidence": "| 2025 | 10派9元 | 0.9 | ~6.68亿元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 329,
+      "evidence": "| 2026H1 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 330,
+      "evidence": "| 2026Q3 | 10派1元 | 0.1 | ~0.74亿元 |"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 332,
+      "evidence": "> 注：2026年两次分红（中报+三季报）合计约7.42亿元，分红力度较大。"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 384,
+      "evidence": "- 140,000+终端销售网点，覆盖全国"
+    },
+    {
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 391,
+      "evidence": "- 3,800+项专利"
+    },
+    {
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 3,
+      "evidence": "> 预估字数：约 30,000 字（9家竞品，每家约3,000–5,000字）"
+    },
+    {
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 111,
+      "evidence": "| 员工人数 | ~5,000–6,000人 | 估算值 |"
+    },
+    {
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 519,
+      "evidence": "| 智能吸顶灯 | Yeelight智能吸顶灯 | 300–1,500元 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 16,
+      "evidence": "| 欧普 | 莫兰迪系列 | 设计感 | 3000–6000K | 100–120 | ≥90 | Wi-Fi | 300–1,200 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 17,
+      "evidence": "| 欧普 | OLL设计系列 | 高端设计 | 2700–6500K | 120–150 | ≥95 | Matter/Zigbee | 800–3,000 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 19,
+      "evidence": "| 雷士 | 高端吸顶灯系列 | 品质 | 3000–6000K | 100–120 | ≥90 | Zigbee | 400–1,500 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 22,
+      "evidence": "| 公牛 | 吸顶灯系列 | 配套销售 | 3000–6000K | 100–120 | ≥90 | Wi-Fi | 300–1,000 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 23,
+      "evidence": "| Yeelight | 智能吸顶灯系列 | 米家生态 | 1700–6500K | 100–130 | ≥95 | MiHome/蓝牙Mesh | 300–1,500 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 24,
+      "evidence": "| 飞利浦 | 吸顶灯系列 | 品质+设计 | 2700–6500K | 100–140 | ≥90 | Zigbee（Philips Hue） | 500–3,000 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 25,
+      "evidence": "| 松下 | 吸顶灯系列 | 日系品质 | 2700–6500K | 100–130 | ≥90 | — | 500–2,500 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 29,
+      "evidence": "1. **欧普在吸顶灯领域的产品线最为完整**，从大众（小灯塔系列，200–800元）到高端（OLL设计系列，800–3,000元）全覆盖。"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 60,
+      "evidence": "| 欧普 | 小灯塔博睿Pro | SDL智慧光谱 | ≥1,500lx | ≤1.1 | 无 | Wi-Fi | 300–800 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 61,
+      "evidence": "| 雷士 | 护眼台灯系列 | 国AA级 | ≥1,000lx | ≤1.2 | 无 | — | 200–500 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 62,
+      "evidence": "| 飞利浦 | 护眼台灯系列 | 荷兰技术 | ≥1,000lx | ≤1.1 | 无 | — | 300–800 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 63,
+      "evidence": "| 松下 | 护眼台灯系列 | 日系品质 | ≥1,000lx | ≤1.1 | 无 | — | 300–1,000 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 64,
+      "evidence": "| Yeelight | 智能台灯 | 米家生态 | ≥1,000lx | ≤1.2 | 无 | MiHome | 200–500 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 86,
+      "evidence": "| **典型寿命（小时）** | 25,000–50,000 | 25,000–40,000 | 25,000–40,000 | 30,000–50,000 | 25,000–40,000 | 25,000–50,000 | 30,000–50,000 |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 95,
+      "evidence": "4. **寿命**：各品牌主流产品的寿命在25,000–50,000小时之间，差异不大。"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 127,
+      "evidence": "| 500–1,000 | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 128,
+      "evidence": "| 1,000–2,000 | ✓ | ✓ | — | — | — | ✓ | ✓ |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 129,
+      "evidence": "| 2,000以上 | ✓（OLL） | — | — | — | — | ✓ | ✓ |"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 133,
+      "evidence": "1. **欧普的价格带覆盖最宽**（100–3,000元），从大众到高端全覆盖。"
+    },
+    {
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 136,
+      "evidence": "4. **Yeelight主要集中在300–1,500元的中端市场**。"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 15,
+      "evidence": "| 欧普照明 | 140,000+ | 专卖店/专柜/经销商门店 | 全国31省，下沉至县级 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 16,
+      "evidence": "| 雷士照明 | 100,000–120,000 | 专卖店/经销商门店 | 全国为主，部分海外 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 17,
+      "evidence": "| 公牛集团 | 700,000+ | 开关插座终端店 | 全国，深度下沉 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 18,
+      "evidence": "| 佛山照明 | 50,000–60,000 | 经销商门店/专柜 | 全国 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 19,
+      "evidence": "| 三雄极光 | 30,000–40,000 | 经销商门店/工程网点 | 全国为主 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 20,
+      "evidence": "| Yeelight/小米 | ~5,000 | 小米之家/授权店 | 一二线城市为主 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 21,
+      "evidence": "| 飞利浦/昕诺飞 | ~10,000 | 专卖店/经销商 | 一二线城市为主 |"
+    },
+    {
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 22,
+      "evidence": "| 松下照明 | ~8,000 | 专卖店/经销商 | 一二线城市为主 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 18,
+      "evidence": "| 2021 | ~200 | ~33% | ~5.5% | 小米生态推动 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 19,
+      "evidence": "| 2022 | ~270 | ~35% | ~7.5% | Matter协议发布 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 55,
+      "evidence": "| **Zigbee** | 2.4GHz | Mesh | 低 | 低 | ~65,000 | 好（Zigbee联盟） | 飞利浦Hue/欧普 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 56,
+      "evidence": "| **蓝牙Mesh** | 2.4GHz | Mesh | 极低 | 中 | ~32,000 | 好（蓝牙联盟） | 欧普/小米/涂鸦 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 57,
+      "evidence": "| **Matter** | 2.4/5GHz | Mesh | 低 | 低 | ~32,000 | 最好（CSA标准） | 苹果/谷歌/欧普 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 77,
+      "evidence": "| **米家（MiHome）** | 300+ | 10,000+ | 生态链最完整，性价比最高 | Yeelight/小米 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 78,
+      "evidence": "| **华为HiLink/鸿蒙** | 200+ | 5,000+ | 鸿蒙生态，PLC+Wi-Fi双模 | 欧普/华为智选 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 79,
+      "evidence": "| **Apple HomeKit** | 100+ | 2,000+ | 隐私安全，用户体验好 | 飞利浦Hue/部分欧普 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 81,
+      "evidence": "| **涂鸦智能（Tuya）** | 1,000+ | 20,000+ | 平台化，ODM模式 | 众多中小品牌 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 95,
+      "evidence": "| 欧普照明 | 全屋智能照明方案 | APP/语音/面板 | 20+ | 0–100% | 人体/光照 | 5,000–30,000元 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 96,
+      "evidence": "| Yeelight/小米 | 米家全屋智能 | APP/语音/自动化 | 30+ | 0–100% | 人体/光照/门磁 | 3,000–20,000元 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 97,
+      "evidence": "| 华为智选 | 鸿蒙全屋智能 | APP/语音/面板 | 20+ | 0–100% | 人体/光照 | 5,000–25,000元 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 98,
+      "evidence": "| 飞利浦Hue | Hue全屋方案 | APP/语音/面板 | 15+ | 0–100% | 人体/光照 | 10,000–50,000元 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 99,
+      "evidence": "| 松下 | 全屋智能照明 | APP/面板 | 10+ | 0–100% | 人体 | 8,000–40,000元 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 190,
+      "evidence": "| 欧普照明 | 3,800+ | ~800 | ~2,000 | ~1,000 | 官网数据 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 191,
+      "evidence": "| 雷士照明 | ~2,000 | ~400 | ~1,200 | ~400 | 估算 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 192,
+      "evidence": "| 佛山照明 | ~1,500 | ~300 | ~1,000 | ~200 | 年报数据 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 194,
+      "evidence": "| 公牛集团 | ~5,000+ | ~1,000 | ~3,500 | ~500 | 含开关插座专利 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 195,
+      "evidence": "| 飞利浦/昕诺飞 | ~50,000+ | ~20,000 | ~20,000 | ~10,000 | 全球专利 |"
+    },
+    {
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 196,
+      "evidence": "| 松下 | ~100,000+ | ~40,000 | ~50,000 | ~10,000 | 全球专利 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 28,
+      "evidence": "> - 总股本：74,227.9749万股"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 31,
+      "evidence": "> - 2025年归母净利润 ≈ 1.2375 × 74,227.9749万 ≈ **9.18亿元**"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 32,
+      "evidence": "> - 2026H1归母净利润 ≈ 0.3422 × 74,227.9749万 ≈ **2.54亿元**"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 38,
+      "evidence": "| 归母净利润 | ~9.18亿元 | ~2.54亿元 | EPS × 总股本 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 40,
+      "evidence": "| ROE | 13.13% | 3.83%（年化~7.66%） | 新浪财经 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 177,
+      "evidence": "| 2023 | 10派5元 | 0.5 | ~3.71亿元 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 178,
+      "evidence": "| 2024 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 179,
+      "evidence": "| 2025 | 10派9元 | 0.9 | ~6.68亿元 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 180,
+      "evidence": "| 2026H1 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 181,
+      "evidence": "| 2026Q3 | 10派1元 | 0.1 | ~0.74亿元 |"
+    },
+    {
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 17,
+      "evidence": "欧普照明拥有超过140,000家终端销售网点，覆盖全国31个省级行政区，下沉至县级市场。这一渠道网络是欧普最核心的竞争壁垒之一。同时，欧普在电商渠道表现突出，双十一灯具类目六连冠。"
+    },
+    {
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 25,
+      "evidence": "欧普年均研发投入超过3亿元，研发费用率在照明行业中最高（5–6%）。累计专利超过3,800项，在上海、中山、苏州、欧洲四地拥有研发实验室。SDL智慧光谱技术、人因照明等前沿技术布局领先。"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 33,
+      "evidence": "| 家庭照明 | ~4亿户 | 5–10年 | ~4,000–8,000万户/年 |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 36,
+      "evidence": "| 道路/户外 | ~5,000万盏 | 5–10年 | ~500–1,000万盏/年 |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 55,
+      "evidence": "| 2020 | ~2,600 | ~20% | ~10% |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 56,
+      "evidence": "| 2021 | ~3,100 | ~19% | ~12% |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 57,
+      "evidence": "| 2022 | ~3,700 | ~19% | ~14% |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 58,
+      "evidence": "| 2023 | ~4,400 | ~19% | ~17% |"
+    },
+    {
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 59,
+      "evidence": "| 2024 | ~5,200 | ~18% | ~20% |"
+    },
+    {
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 11,
+      "evidence": "1. **中国照明市场规模约3,600–3,800亿元**，增速已从两位数降至个位数（1–3%），行业从增量市场转向存量市场。"
+    }
+  ],
+  "findings": [
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/02_行业全景.md",
+      "line": 11,
+      "message": "台账停更：第2章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "全球照明市场经过数十年的发展，已形成成熟且规模庞大的产业格局。根据行业研究机构LEDinside、Grand View Research等发布的数据，2024年全球照明市场规模约为**2,800–3,000亿美元**，其中LED照明产品占比已超过**75%**，成为绝对主流。"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 3,
+      "message": "台账停更：第5章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "> 预估字数：约 30,000 字（9家竞品，每家约3,000–5,000字）"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 16,
+      "message": "台账停更：第6章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "| 欧普 | 莫兰迪系列 | 设计感 | 3000–6000K | 100–120 | ≥90 | Wi-Fi | 300–1,200 |"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 15,
+      "message": "台账停更：第7章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "| 欧普照明 | 140,000+ | 专卖店/专柜/经销商门店 | 全国31省，下沉至县级 |"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 18,
+      "message": "台账停更：第8章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "| 2021 | ~200 | ~33% | ~5.5% | 小米生态推动 |"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 28,
+      "message": "台账停更：第9章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "> - 总股本：74,227.9749万股"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 17,
+      "message": "台账停更：第10章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "欧普照明拥有超过140,000家终端销售网点，覆盖全国31个省级行政区，下沉至县级市场。这一渠道网络是欧普最核心的竞争壁垒之一。同时，欧普在电商渠道表现突出，双十一灯具类目六连冠。"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 33,
+      "message": "台账停更：第11章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "| 家庭照明 | ~4亿户 | 5–10年 | ~4,000–8,000万户/年 |"
+    },
+    {
+      "check": "ledger_freshness",
+      "severity": "medium",
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 11,
+      "message": "台账停更：第12章含精确数值，但台账无「首现章节」对应该章的条目（GD-15）",
+      "evidence": "1. **中国照明市场规模约3,600–3,800亿元**，增速已从两位数降至个位数（1–3%），行业从增量市场转向存量市场。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 25,
+      "message": "精确数值 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "欧普照明成立于1996年，2016年8月在上海证券交易所主板上市，是中国照明行业最早上市的民族品牌之一。上市以来，欧普照明凭借\"品牌+渠道+研发\"三轮驱动的战略，在家居照明领域建立了显著的先发优势。截至2026年，欧普照明已拥有超过14万家终端销售网点，业务覆盖亚太、欧洲、中东等70多个国家和地区，专利数量超过3,800项，连续9年入围世界品牌实验室\"中国500最具价值品牌\"榜单。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 64,
+      "message": "精确数值 74,228 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 注册资本 | 74,228万元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 65,
+      "message": "精确数值 74,227 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 总股本 | 74,227.9749万股 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 68,
+      "message": "精确数值 6,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 员工人数 | 约6,000人 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 69,
+      "message": "精确数值 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 专利数量 | 3,800+项 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 70,
+      "message": "精确数值 140,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 终端网点 | 140,000+家 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 79,
+      "message": "精确数值 47.291% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 中山欧普投资 | 47.291% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 80,
+      "message": "精确数值 16.576% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 杨耀尧 | 16.576% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 81,
+      "message": "精确数值 16.110% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 马建辉 | 16.110% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 11,
+      "message": "精确数值 2,800, 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "全球照明市场经过数十年的发展，已形成成熟且规模庞大的产业格局。根据行业研究机构LEDinside、Grand View Research等发布的数据，2024年全球照明市场规模约为**2,800–3,000亿美元**，其中LED照明产品占比已超过**75%**，成为绝对主流。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 82,
+      "message": "精确数值 3,500, 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "中国是全球最大的照明产品生产国和消费国。根据中国照明电器协会（CLA）及行业研究机构的数据，2024年中国照明市场规模约为**3,500–3,800亿元人民币**，其中LED照明产品占比约**75–80%**。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 88,
+      "message": "精确数值 3,200 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2019 | ~3,200 | ~5% | ~60% | LED替代加速 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 89,
+      "message": "精确数值 3,300 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2020 | ~3,300 | ~3% | ~65% | 疫情短期冲击 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 90,
+      "message": "精确数值 3,400 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2021 | ~3,400 | ~3% | ~70% | 疫后复苏 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 91,
+      "message": "精确数值 3,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2022 | ~3,500 | ~3% | ~73% | 地产下行初现 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 92,
+      "message": "精确数值 3,550, 1.4% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2023 | ~3,550 | ~1.4% | ~76% | 增速放缓 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 93,
+      "message": "精确数值 3,600, 1.4% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2024 | ~3,600 | ~1.4% | ~78% | 存量市场特征明显 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 248,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 白炽灯 | 1879–2010s | 钨丝灯泡 | 8–15 | 1,000 | 基准（1x） |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 249,
+      "message": "精确数值 2,000, 4,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 卤素灯 | 1959–2010s | 卤素灯泡 | 15–25 | 2,000–4,000 | 2–3x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 250,
+      "message": "精确数值 8,000, 15,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 荧光灯 | 1938–2020s | 日光灯管 | 50–70 | 8,000–15,000 | 5–8x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 251,
+      "message": "精确数值 8,000, 10,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| CFL节能灯 | 1978–2020s | 紧凑型荧光灯 | 50–70 | 8,000–10,000 | 5–8x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 252,
+      "message": "精确数值 25,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| LED（第一代） | 2000s–2010s | LED球泡灯 | 60–100 | 25,000 | 8–12x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 253,
+      "message": "精确数值 30,000, 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| LED（第二代） | 2010s–2020s | LED面板灯/筒灯 | 100–150 | 30,000–50,000 | 12–18x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 254,
+      "message": "精确数值 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| LED（第三代） | 2020s–至今 | 高光效LED/MiniLED | 150–200+ | 50,000+ | 18–25x |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 255,
+      "message": "精确数值 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 智能照明/HCL | 2020s–至今 | 可调色温/色彩LED | 150–200+ | 50,000+ | 18–25x + 智能控制 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/02_行业全景.md",
+      "line": 297,
+      "message": "精确数值 2,700, 6,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- **可调色温（Tunable White）**：色温范围从2,700K（暖白）到6,500K（冷白）"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 15,
+      "message": "精确数值 5,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "**1997年**，欧普开始投产吸顶灯产品，由单一产品结构向多元化转变。这一年接到的最大订单——为广州白天鹅宾馆生产5,000支节能灯——成为欧普早期发展的重要里程碑。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 39,
+      "message": "精确数值 6,018 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "**2013年**，欧普电商迅速发展，\"双十一\"销售额达到6,018万元；同年，第一条LED自动化生产线投入生产。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 48,
+      "message": "精确数值 12.6亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- **8月19日**：欧普照明成功登陆上海证券交易所主板，正式挂牌上市。股票简称\"欧普照明\"，股票代码603515.SH。上市募资约12.6亿元，用于生产基地建设、营销网络升级和研发中心建设。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 49,
+      "message": "精确数值 2.046亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- **11月**：欧普以2.046亿成交额，实现双11四连冠。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 60,
+      "message": "精确数值 3.67亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- **11月**：欧普商用工业产品鹏旭LED天棚灯斩获日本G-Mark（优良设计奖），成为\"双料王\"。同年双十一官方直销量以3.67亿成绩6度蝉联冠军。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 102,
+      "message": "精确数值 47.291% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 中山欧普投资有限公司 | 47.291% | 控股股东 | 马氏家族控股平台 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 103,
+      "message": "精确数值 16.576% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 杨耀尧 | 16.576% | 自然人/创始人 | 法人代表 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 104,
+      "message": "精确数值 16.110% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 马建辉 | 16.110% | 自然人/创始人 | 董事长 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 105,
+      "message": "精确数值 3.058% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 香港中央结算有限公司（沪股通） | 3.058% | 外资/QFII | 北向资金 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 176,
+      "message": "精确数值 2,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 吊灯 | 北欧/现代/中式吊灯 | 中高端 | 300–2,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 179,
+      "message": "精确数值 2,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 风扇灯 | 隐形风扇灯 | 中高端 | 500–2,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 180,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 浴霸 | 风暖浴霸 | 大众→中高端 | 300–1,500元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 181,
+      "message": "精确数值 1,000, 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 晾衣机 | 智能晾衣机 | 中高端 | 1,000–3,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 233,
+      "message": "精确数值 140,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- **网点数量**：超过140,000家终端销售网点"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 273,
+      "message": "精确数值 3.83% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> - 2026H1 ROE：3.83%"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 326,
+      "message": "精确数值 3.71亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2023 | 10派5元 | 0.5 | ~3.71亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 327,
+      "message": "精确数值 6.31亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2024 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 328,
+      "message": "精确数值 6.68亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2025 | 10派9元 | 0.9 | ~6.68亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 329,
+      "message": "精确数值 6.31亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2026H1 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 330,
+      "message": "精确数值 0.74亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2026Q3 | 10派1元 | 0.1 | ~0.74亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 332,
+      "message": "精确数值 7.42亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> 注：2026年两次分红（中报+三季报）合计约7.42亿元，分红力度较大。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 384,
+      "message": "精确数值 140,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- 140,000+终端销售网点，覆盖全国"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 391,
+      "message": "精确数值 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "- 3,800+项专利"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 3,
+      "message": "精确数值 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> 预估字数：约 30,000 字（9家竞品，每家约3,000–5,000字）"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 111,
+      "message": "精确数值 5,000, 6,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 员工人数 | ~5,000–6,000人 | 估算值 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 519,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 智能吸顶灯 | Yeelight智能吸顶灯 | 300–1,500元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 16,
+      "message": "精确数值 1,200 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普 | 莫兰迪系列 | 设计感 | 3000–6000K | 100–120 | ≥90 | Wi-Fi | 300–1,200 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 17,
+      "message": "精确数值 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普 | OLL设计系列 | 高端设计 | 2700–6500K | 120–150 | ≥95 | Matter/Zigbee | 800–3,000 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 19,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 雷士 | 高端吸顶灯系列 | 品质 | 3000–6000K | 100–120 | ≥90 | Zigbee | 400–1,500 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 22,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 公牛 | 吸顶灯系列 | 配套销售 | 3000–6000K | 100–120 | ≥90 | Wi-Fi | 300–1,000 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 23,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| Yeelight | 智能吸顶灯系列 | 米家生态 | 1700–6500K | 100–130 | ≥95 | MiHome/蓝牙Mesh | 300–1,500 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 24,
+      "message": "精确数值 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 飞利浦 | 吸顶灯系列 | 品质+设计 | 2700–6500K | 100–140 | ≥90 | Zigbee（Philips Hue） | 500–3,000 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 25,
+      "message": "精确数值 2,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 松下 | 吸顶灯系列 | 日系品质 | 2700–6500K | 100–130 | ≥90 | — | 500–2,500 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 29,
+      "message": "精确数值 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "1. **欧普在吸顶灯领域的产品线最为完整**，从大众（小灯塔系列，200–800元）到高端（OLL设计系列，800–3,000元）全覆盖。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 60,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普 | 小灯塔博睿Pro | SDL智慧光谱 | ≥1,500lx | ≤1.1 | 无 | Wi-Fi | 300–800 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 61,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 雷士 | 护眼台灯系列 | 国AA级 | ≥1,000lx | ≤1.2 | 无 | — | 200–500 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 62,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 飞利浦 | 护眼台灯系列 | 荷兰技术 | ≥1,000lx | ≤1.1 | 无 | — | 300–800 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 63,
+      "message": "精确数值 1,000, 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 松下 | 护眼台灯系列 | 日系品质 | ≥1,000lx | ≤1.1 | 无 | — | 300–1,000 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 64,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| Yeelight | 智能台灯 | 米家生态 | ≥1,000lx | ≤1.2 | 无 | MiHome | 200–500 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 86,
+      "message": "精确数值 25,000, 50,000, 25,000, 40,000, 25,000, 40,000, 30,000, 50,000, 25,000, 40,000, 25,000, 50,000, 30,000, 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **典型寿命（小时）** | 25,000–50,000 | 25,000–40,000 | 25,000–40,000 | 30,000–50,000 | 25,000–40,000 | 25,000–50,000 | 30,000–50,000 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 95,
+      "message": "精确数值 25,000, 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "4. **寿命**：各品牌主流产品的寿命在25,000–50,000小时之间，差异不大。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 127,
+      "message": "精确数值 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 500–1,000 | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 128,
+      "message": "精确数值 1,000, 2,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 1,000–2,000 | ✓ | ✓ | — | — | — | ✓ | ✓ |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 129,
+      "message": "精确数值 2,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2,000以上 | ✓（OLL） | — | — | — | — | ✓ | ✓ |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 133,
+      "message": "精确数值 3,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "1. **欧普的价格带覆盖最宽**（100–3,000元），从大众到高端全覆盖。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 136,
+      "message": "精确数值 1,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "4. **Yeelight主要集中在300–1,500元的中端市场**。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 15,
+      "message": "精确数值 140,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普照明 | 140,000+ | 专卖店/专柜/经销商门店 | 全国31省，下沉至县级 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 16,
+      "message": "精确数值 100,000, 120,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 雷士照明 | 100,000–120,000 | 专卖店/经销商门店 | 全国为主，部分海外 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 17,
+      "message": "精确数值 700,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 公牛集团 | 700,000+ | 开关插座终端店 | 全国，深度下沉 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 18,
+      "message": "精确数值 50,000, 60,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 佛山照明 | 50,000–60,000 | 经销商门店/专柜 | 全国 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 19,
+      "message": "精确数值 30,000, 40,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 三雄极光 | 30,000–40,000 | 经销商门店/工程网点 | 全国为主 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 20,
+      "message": "精确数值 5,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| Yeelight/小米 | ~5,000 | 小米之家/授权店 | 一二线城市为主 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 21,
+      "message": "精确数值 10,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 飞利浦/昕诺飞 | ~10,000 | 专卖店/经销商 | 一二线城市为主 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 22,
+      "message": "精确数值 8,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 松下照明 | ~8,000 | 专卖店/经销商 | 一二线城市为主 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 18,
+      "message": "精确数值 5.5% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2021 | ~200 | ~33% | ~5.5% | 小米生态推动 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 19,
+      "message": "精确数值 7.5% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2022 | ~270 | ~35% | ~7.5% | Matter协议发布 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 55,
+      "message": "精确数值 65,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **Zigbee** | 2.4GHz | Mesh | 低 | 低 | ~65,000 | 好（Zigbee联盟） | 飞利浦Hue/欧普 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 56,
+      "message": "精确数值 32,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **蓝牙Mesh** | 2.4GHz | Mesh | 极低 | 中 | ~32,000 | 好（蓝牙联盟） | 欧普/小米/涂鸦 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 57,
+      "message": "精确数值 32,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **Matter** | 2.4/5GHz | Mesh | 低 | 低 | ~32,000 | 最好（CSA标准） | 苹果/谷歌/欧普 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 77,
+      "message": "精确数值 10,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **米家（MiHome）** | 300+ | 10,000+ | 生态链最完整，性价比最高 | Yeelight/小米 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 78,
+      "message": "精确数值 5,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **华为HiLink/鸿蒙** | 200+ | 5,000+ | 鸿蒙生态，PLC+Wi-Fi双模 | 欧普/华为智选 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 79,
+      "message": "精确数值 2,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **Apple HomeKit** | 100+ | 2,000+ | 隐私安全，用户体验好 | 飞利浦Hue/部分欧普 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 81,
+      "message": "精确数值 1,000, 20,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| **涂鸦智能（Tuya）** | 1,000+ | 20,000+ | 平台化，ODM模式 | 众多中小品牌 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 95,
+      "message": "精确数值 5,000, 30,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普照明 | 全屋智能照明方案 | APP/语音/面板 | 20+ | 0–100% | 人体/光照 | 5,000–30,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 96,
+      "message": "精确数值 3,000, 20,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| Yeelight/小米 | 米家全屋智能 | APP/语音/自动化 | 30+ | 0–100% | 人体/光照/门磁 | 3,000–20,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 97,
+      "message": "精确数值 5,000, 25,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 华为智选 | 鸿蒙全屋智能 | APP/语音/面板 | 20+ | 0–100% | 人体/光照 | 5,000–25,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 98,
+      "message": "精确数值 10,000, 50,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 飞利浦Hue | Hue全屋方案 | APP/语音/面板 | 15+ | 0–100% | 人体/光照 | 10,000–50,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 99,
+      "message": "精确数值 8,000, 40,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 松下 | 全屋智能照明 | APP/面板 | 10+ | 0–100% | 人体 | 8,000–40,000元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 190,
+      "message": "精确数值 3,800, 2,000, 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 欧普照明 | 3,800+ | ~800 | ~2,000 | ~1,000 | 官网数据 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 191,
+      "message": "精确数值 2,000, 1,200 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 雷士照明 | ~2,000 | ~400 | ~1,200 | ~400 | 估算 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 192,
+      "message": "精确数值 1,500, 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 佛山照明 | ~1,500 | ~300 | ~1,000 | ~200 | 年报数据 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 194,
+      "message": "精确数值 5,000, 1,000, 3,500 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 公牛集团 | ~5,000+ | ~1,000 | ~3,500 | ~500 | 含开关插座专利 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 195,
+      "message": "精确数值 50,000, 20,000, 20,000, 10,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 飞利浦/昕诺飞 | ~50,000+ | ~20,000 | ~20,000 | ~10,000 | 全球专利 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 196,
+      "message": "精确数值 100,000, 40,000, 50,000, 10,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 松下 | ~100,000+ | ~40,000 | ~50,000 | ~10,000 | 全球专利 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 28,
+      "message": "精确数值 74,227 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> - 总股本：74,227.9749万股"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 31,
+      "message": "精确数值 74,227, 9.18亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> - 2025年归母净利润 ≈ 1.2375 × 74,227.9749万 ≈ **9.18亿元**"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 32,
+      "message": "精确数值 74,227, 2.54亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "> - 2026H1归母净利润 ≈ 0.3422 × 74,227.9749万 ≈ **2.54亿元**"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 38,
+      "message": "精确数值 9.18亿, 2.54亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 归母净利润 | ~9.18亿元 | ~2.54亿元 | EPS × 总股本 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 40,
+      "message": "精确数值 13.13%, 3.83%, 7.66% 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| ROE | 13.13% | 3.83%（年化~7.66%） | 新浪财经 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 177,
+      "message": "精确数值 3.71亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2023 | 10派5元 | 0.5 | ~3.71亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 178,
+      "message": "精确数值 6.31亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2024 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 179,
+      "message": "精确数值 6.68亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2025 | 10派9元 | 0.9 | ~6.68亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 180,
+      "message": "精确数值 6.31亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2026H1 | 10派8.5元 | 0.85 | ~6.31亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 181,
+      "message": "精确数值 0.74亿 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2026Q3 | 10派1元 | 0.1 | ~0.74亿元 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 17,
+      "message": "精确数值 140,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "欧普照明拥有超过140,000家终端销售网点，覆盖全国31个省级行政区，下沉至县级市场。这一渠道网络是欧普最核心的竞争壁垒之一。同时，欧普在电商渠道表现突出，双十一灯具类目六连冠。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 25,
+      "message": "精确数值 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "欧普年均研发投入超过3亿元，研发费用率在照明行业中最高（5–6%）。累计专利超过3,800项，在上海、中山、苏州、欧洲四地拥有研发实验室。SDL智慧光谱技术、人因照明等前沿技术布局领先。"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 33,
+      "message": "精确数值 4,000, 8,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 家庭照明 | ~4亿户 | 5–10年 | ~4,000–8,000万户/年 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 36,
+      "message": "精确数值 5,000, 1,000 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 道路/户外 | ~5,000万盏 | 5–10年 | ~500–1,000万盏/年 |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 55,
+      "message": "精确数值 2,600 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2020 | ~2,600 | ~20% | ~10% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 56,
+      "message": "精确数值 3,100 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2021 | ~3,100 | ~19% | ~12% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 57,
+      "message": "精确数值 3,700 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2022 | ~3,700 | ~19% | ~14% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 58,
+      "message": "精确数值 4,400 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2023 | ~4,400 | ~19% | ~17% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 59,
+      "message": "精确数值 5,200 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "| 2024 | ~5,200 | ~18% | ~20% |"
+    },
+    {
+      "check": "unsourced_precise",
+      "severity": "high",
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 11,
+      "message": "精确数值 3,600, 3,800 附近无来源标注且无 [待核实] 标记（GD-06）",
+      "evidence": "1. **中国照明市场规模约3,600–3,800亿元**，增速已从两位数降至个位数（1–3%），行业从增量市场转向存量市场。"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 59,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/01_研究背景与方法.md",
+      "line": 77,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 股东 | 持股比例 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 15,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 阶段 | 时间 | 主导技术 | 特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 40,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 国家/地区 | LED渗透率 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 57,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 企业 | 总部 | 2024年营收（估算） | 核心优势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 65,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 企业 | 总部 | 核心市场 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 108,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 细分赛道 | 市场规模占比（2024） | 增速（2024–2030E） | 竞争特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 121,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 区域 | 市场规模占比 | 主要城市 | 特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 141,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 环节 | 代表企业 | 市场特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 148,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 环节 | 代表企业 | 市场特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 155,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 渠道类型 | 代表平台/企业 | 市场特征 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 166,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 子品类 | 市场规模占比（家居照明内） | 增速 | 竞争格局 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 181,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 子品类 | 市场规模 | 竞争格局 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 232,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 标准/协议 | 发布机构 | 内容 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 246,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 技术代际 | 时间 | 典型产品 | 光效（lm/W） | 寿命（小时） | 能效对比 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/02_行业全景.md",
+      "line": 285,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 协议 | 频率 | 传输距离 | 功耗 | 适用场景 | 代表企业 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 100,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 股东名称 | 持股比例 | 性质 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 124,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 141,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 职务 | 姓名 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 154,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 子公司 | 成立时间 | 主营业务 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 173,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 市场定位 | 价格带 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 188,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 应用场景 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 201,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表系列 | 市场定位 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 211,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 技术特点 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 222,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 渠道类型 | 占比（估算） | 特点 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 292,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 311,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 2025年 | 2026H1 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 324,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 分红年度 | 分红方案 | 每股分红（元） | 分红总额（估算） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 36,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 市场份额 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 50,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 市场份额 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 64,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌/生态 | 市场份额 | 技术路线 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 101,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 壁垒类型 | 壁垒高度 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 121,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 上游环节 | 供应商集中度 | 议价能力 | 代表企业 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 139,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 买方类型 | 议价能力 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 165,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 替代技术 | 成熟度 | 替代程度 | 时间 horizon |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 181,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/04_竞争格局总览.md",
+      "line": 296,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| KSF | 欧普匹配度 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 13,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 36,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 股东 | 持股比例（估算） | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 51,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 应用场景 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 62,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 市场定位 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 72,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 应用场景 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 87,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 渠道类型 | 占比（估算） | 特点 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 117,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势（Strengths） | 劣势（Weaknesses） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 124,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会（Opportunities） | 威胁（Threats） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 133,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 雷士照明 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 153,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 173,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 股东 | 持股比例（估算） | 性质 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 183,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 市场地位 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 194,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 渠道类型 | 占比（估算） | 特点 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 214,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 221,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 229,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 佛山照明 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 247,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 264,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 市场定位 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 274,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 渠道类型 | 占比（估算） | 特点 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 283,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 三雄极光 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 300,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 314,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 市场定位 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 331,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 公牛集团 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 348,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 367,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 阳光照明 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 383,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 403,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 木林森 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 419,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 445,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 昕诺飞 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 462,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 483,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | 松下照明 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 499,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 数值 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 517,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品品类 | 代表产品 | 价格带 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/05_重点竞品深度分析.md",
+      "line": 527,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 对比维度 | Yeelight/小米 | 欧普照明 | 优势方 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 13,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 产品系列 | 核心卖点 | 色温范围 | 光效（lm/W） | CRI | 智能支持 | 价格带（元） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 38,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 产品系列 | 核心卖点 | 功率范围 | 光束角 | 防眩深度 | 智能支持 | 价格带（元/个） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 58,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 产品系列 | 核心卖点 | 照度 | 均匀度 | 频闪 | 智能支持 | 价格带（元） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 81,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 参数 | 欧普照明 | 雷士照明 | 佛山照明 | 三雄极光 | Yeelight | 飞利浦 | 松下 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 122,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 价格带（元） | 欧普 | 雷士 | 佛山 | 三雄 | Yeelight | 飞利浦 | 松下 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/06_产品线与技术参数对比.md",
+      "line": 142,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 性价比评级 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 13,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 线下网点数量（估算） | 网点类型 | 区域覆盖 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 35,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 优势区域 | 弱势区域 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 48,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 终端形象定位 | 门店面积（典型） | 设计风格 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 65,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 电商占比（估算） | 天猫排名 | 京东排名 | 双十一表现 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 105,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 电商策略 | 核心优势 | 核心挑战 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 129,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 工程渠道占比 | 核心客户 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 158,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 合作地产商（部分） | 合作深度 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 174,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 广告策略 | 主要渠道 | 预算规模（估算） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 196,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 品牌活动 | 频率 | 影响 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 206,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 小红书 | 抖音 | B站 | 微信公众号 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 227,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 海外营收占比 | 主要市场 | 海外策略 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/07_渠道与营销对比.md",
+      "line": 251,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 市场 | 进入时间 | 业务模式 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 30,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 52,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 协议 | 频率 | 拓扑 | 功耗 | 延迟 | 最大节点数 | 互操作性 | 代表品牌 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 62,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | Wi-Fi | Zigbee | 蓝牙Mesh | Matter | PLC | 自有生态 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 75,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 生态平台 | 支持品牌数 | 设备数 | 核心优势 | 代表品牌 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 93,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 方案名称 | 控制方式 | 场景数量 | 调光精度 | 传感器支持 | 价格带（全屋） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 107,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 产品 | 协议 | 功能 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 116,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 控制方式 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 126,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 传感器类型 | 功能 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 142,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 153,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | HCL技术 | 色温范围 | 自动化程度 | 认证/标准 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 174,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 应用场景 | 市场成熟度 | 增长潜力 | 代表品牌 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 188,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 专利总数（估算） | 发明专利 | 实用新型 | 外观设计 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/08_智能照明与新技术布局.md",
+      "line": 210,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 专利质量评级 | 说明 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 36,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 指标 | 2025 | 2026H1 | 推算依据 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 44,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 2022增速 | 2023增速 | 2024增速 | 2025增速 | 趋势判断 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 68,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 2021毛利率 | 2022毛利率 | 2023毛利率 | 2024毛利率 | 2025毛利率 | 趋势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 86,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 2021净利率 | 2022净利率 | 2023净利率 | 2024净利率 | 2025净利率 | 趋势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 108,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 研发投入（亿元） | 研发费用率 | 研发人员（估算） | 专利数量 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 131,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 存货周转率（次/年） | 存货周转天数 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 141,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 资产负债率 | 有息负债率 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 155,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 2025经营现金流 | 现金流/净利润比 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 165,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 公司 | 2023分红 | 2024分红 | 2025分红 | 分红率（占净利润） | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/09_财务与经营指标对标.md",
+      "line": 175,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 分红年度 | 分红方案 | 每股分红（元） | 分红总额（估算） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 115,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 121,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 128,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 134,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 141,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 147,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 154,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 160,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 167,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 优势 | 劣势 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 173,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 机会 | 威胁 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 184,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 212,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/10_SWOT与战略群组分析.md",
+      "line": 252,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "```"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 31,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 存量类型 | 规模估算 | 更新周期 | 年更新量 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 126,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 时间 | 收购方 | 被收购方 | 金额 | 备注 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 160,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 阶段 | 时间 | 特征 | 代表企业 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 185,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 标准/认证 | 发布机构 | 内容 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 199,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| | 正面影响（机会） | 负面影响（威胁） |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/11_行业趋势与机会威胁.md",
+      "line": 226,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 风险类型 | 风险描述 | 影响程度 | 应对建议 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 44,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 品牌 | 品牌力 | 渠道力 | 产品力 | 技术力 | 财务力 | 综合评分 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 170,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 时间 | 行动 | 目标 | 责任部门 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/12_结论与战略建议.md",
+      "line": 181,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 时间 | 行动 | 目标 | 责任部门 |"
+    },
+    {
+      "check": "figure_companion",
+      "severity": "low",
+      "file": "chapters/13_附录.md",
+      "line": 56,
+      "message": "表格/图题块缺少来源标注（附近 ±3 行）",
+      "evidence": "| 中文术语 | 英文术语 | 说明 |"
+    },
+    {
+      "check": "structure",
+      "severity": "medium",
+      "file": "chapters/03_欧普照明深度剖析.md",
+      "line": 324,
+      "message": "跨章逐字重复段落：出现在 03_欧普照明深度剖析.md、09_财务与经营指标对标.md（GD-12）",
+      "evidence": "|分红年度|分红方案|每股分红（元）|分红总额（估算）||----------|----------|---------------|----------------||2023|10派5元|0.5|~3.71亿元||2024|10派8.5元|0.85|~6.31亿元||2025|10派9元|0.9|~6.68亿元||2026H1|10派8.5元|0.85|~6.31亿元||2026Q3|10派1"
+    }
+  ]
+}
