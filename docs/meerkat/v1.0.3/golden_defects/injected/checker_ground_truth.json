@@ -1,0 +1,106 @@
+[
+  {
+    "defect_id": "GD-07",
+    "file": "data_ledger.md",
+    "line": 169
+  },
+  {
+    "defect_id": "GD-07",
+    "file": "data_ledger.md",
+    "line": 170
+  },
+  {
+    "defect_id": "GD-09",
+    "file": "data_ledger.md",
+    "line": 171
+  },
+  {
+    "defect_id": "GD-09",
+    "file": "data_ledger.md",
+    "line": 172
+  },
+  {
+    "defect_id": "GD-01",
+    "file": "chapters/01_研究背景方法与数据来源说明.md",
+    "line": 267,
+    "span_text": "雷士照明于2012年12月在港交所上市（股票代码：2222.HK）。然而2017"
+  },
+  {
+    "defect_id": "GD-02",
+    "file": "chapters/02_中国及全球照明行业全景.md",
+    "line": 726,
+    "span_text": "从专利储备看，飞利浦Hue智能照明专利约10,000件，松下照明约8,000件，"
+  },
+  {
+    "defect_id": "GD-03",
+    "file": "chapters/03_欧普照明公司深度剖析.md",
+    "line": 761,
+    "span_text": "截至2024年末，欧普照明累计专利2,400+件，其中智能照明相关专利占比约27"
+  },
+  {
+    "defect_id": "GD-04",
+    "file": "chapters/04_竞争格局总览.md",
+    "line": 598,
+    "span_text": "公牛集团毛利率最高（46.5%），欧普照明次之（39.3%）。欧普照明盈利能力相"
+  },
+  {
+    "defect_id": "GD-05",
+    "file": "chapters/05_重点竞品逐家深度分析.md",
+    "line": 762,
+    "span_text": "2024年，中国LED照明产品出口额降至388亿美元（预测值），较2021年峰值"
+  },
+  {
+    "defect_id": "GD-06",
+    "file": "chapters/06_产品线与技术参数横向对比.md",
+    "line": 315,
+    "span_text": "木林森在通用照明市场的份额为2.66%，得邦照明为0.72%，两家企业合计控制约"
+  },
+  {
+    "defect_id": "GD-07",
+    "file": "chapters/07_渠道与营销对比.md",
+    "line": 329,
+    "span_text": "雷士照明2024年营收222.9亿元，同比下降5.8%。"
+  },
+  {
+    "defect_id": "GD-08",
+    "file": "chapters/08_智能照明与新技术布局对比.md",
+    "line": 399,
+    "span_text": "| 佛山照明 | 90.48 | 1.27% | 通用照明 |\n| 公牛集团（照"
+  },
+  {
+    "defect_id": "GD-09",
+    "file": "chapters/09_财务与经营指标综合对标.md",
+    "line": 408,
+    "span_text": "木林森2024年营收169.10亿元，同比下降0.35%；归母净利润3.74亿元"
+  },
+  {
+    "defect_id": "GD-10",
+    "file": "chapters/10_SWOT与战略群组分析.md",
+    "line": 292,
+    "span_text": "流动比率2.5，速动比率2.0，均低于行业平均水平，财务风险较低。"
+  },
+  {
+    "defect_id": "GD-11",
+    "file": "chapters/11_行业趋势研判与欧普照明的机会威胁.md",
+    "line": 405,
+    "span_text": "| 渠道孔子化 | Confucius | 销售渠道的孔子化 |\n| 渠道NFT"
+  },
+  {
+    "defect_id": "GD-12",
+    "file": "chapters/12_结论与战略建议.md",
+    "line": 148,
+    "span_text": "本段为逐字重复测试段落：双碳政策推动照明行业能效升级，节能改造工程加速落地。（注"
+  },
+  {
+    "defect_id": "GD-12",
+    "file": "chapters/13_附录.md",
+    "line": 331,
+    "span_text": "本段为逐字重复测试段落：双碳政策推动照明行业能效升级，节能改造工程加速落地。（注"
+  },
+  {
+    "defect_id": "GD-16",
+    "file": "chapters/13_附录.md",
+    "line": 334,
+    "span_text": "**报告日期：** 2025年7月"
+  }
+]

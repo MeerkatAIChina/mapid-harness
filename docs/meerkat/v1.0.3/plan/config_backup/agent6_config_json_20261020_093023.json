@@ -1,0 +1,16 @@
+{
+  "expert_source": {
+    "type": "skillhub",
+    "kind": "skillset",
+    "slug": "marketing-competitor-analysis",
+    "welcome_enrichment": "succeeded"
+  },
+  "backend": {
+    "type": "local_shell",
+    "virtual_mode": true,
+    "root_dir": "E:/"
+  },
+  "conversation_mode": "craft",
+  "workspace_dir": "E:\\projects\\meerkatai-octop\\.octop-dev\\agents\\CompetitorAnalysis",
+  "system_files_path": ".octop"
+}

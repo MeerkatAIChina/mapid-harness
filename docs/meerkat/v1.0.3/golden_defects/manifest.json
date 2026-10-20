@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "host": "baseline/report_merged.md",
+  "text_injectable": [
+    {
+      "id": "GD-01",
+      "title": "雷士照明沿革事实错误",
+      "class": "编造事实",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L216/L2371",
+      "hint": "史实：吴长江2014年落马、2019年雷士中国售予KKR、主体仍以2222.HK挂牌",
+      "snippet": "雷士照明于2012年12月在港交所上市（股票代码：2222.HK）。然而2017年，雷士照明从港交所退市，被吴长江管理团队收购，其财务数据不再公开披露。",
+      "file": "text_injectable/GD-01_雷士照明沿革事实错误.md"
+    },
+    {
+      "id": "GD-02",
+      "title": "专利数据疑似虚构（整千整数+主体错配）",
+      "class": "编造事实",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md 第8章（审计报告：飞利浦Hue约10,000件/松下约8,000件）",
+      "hint": "整千整数无检索依据；「飞利浦Hue」是产品线而非专利持有主体",
+      "snippet": "从专利储备看，飞利浦Hue智能照明专利约10,000件，松下照明约8,000件，欧普照明在智能照明领域的专利数量与国际巨头存在明显差距。",
+      "file": "text_injectable/GD-02_专利数据疑似虚构（整千整数+主体错配）.md"
+    },
+    {
+      "id": "GD-03",
+      "title": "欧普专利数量与公开口径矛盾（2,400+ vs ESG披露3,800~4,155件）",
+      "class": "编造事实",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L1496/L1720（审计报告：与ESG报告3,808~4,155件矛盾）",
+      "hint": "公开口径：期末有效专利3,800+件",
+      "snippet": "截至2024年末，欧普照明累计专利2,400+件，其中智能照明相关专利占比约27%。",
+      "file": "text_injectable/GD-03_欧普专利数量与公开口径矛盾（2,400+.md"
+    },
+    {
+      "id": "GD-04",
+      "title": "公牛毛利率错误值流入结论（46.5% vs 实际43.25%）",
+      "class": "编造事实",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L4248/L4275（一财公开数据43.25%）",
+      "hint": "错误值被代入第9章对标与第12章结论",
+      "snippet": "公牛集团毛利率最高（46.5%），欧普照明次之（39.3%）。欧普照明盈利能力相比公牛仍有较大提升空间。",
+      "file": "text_injectable/GD-04_公牛毛利率错误值流入结论（46.5__v.md"
+    },
+    {
+      "id": "GD-05",
+      "title": "时效口径滞后（2024出口388亿标「预测值」，与主流口径423亿不符）",
+      "class": "编造事实",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L19/L685（机电商会口径约423亿美元）",
+      "hint": "报告生成于2026-10，2024实际数据已公布；「预测值」标注错误",
+      "snippet": "2024年，中国LED照明产品出口额降至388亿美元（预测值），较2021年峰值474.45亿美元回落约18.2%。",
+      "file": "text_injectable/GD-05_时效口径滞后（2024出口388亿标「预.md"
+    },
+    {
+      "id": "GD-06",
+      "title": "[待核实]红线缺失：无来源精确数据未标注",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "baseline/report_merged.md 全文（正文0处行内[待核实]）",
+      "hint": "检查器：无来源精确数据扫描应命中",
+      "snippet": "木林森在通用照明市场的份额为2.66%，得邦照明为0.72%，两家企业合计控制约3.4%的市场。",
+      "file": "text_injectable/GD-06_[待核实]红线缺失：无来源精确数据未标注.md"
+    },
+    {
+      "id": "GD-07",
+      "title": "跨章数值冲突：雷士2024营收22亿 vs 222.9亿（10倍）",
+      "class": "一致性偏差",
+      "detector": "code+claude",
+      "evidence": "baseline/report_merged.md L2480（约22亿）vs L5302（222.9亿）",
+      "hint": "台账查重/数值比对应命中同指标两值",
+      "snippet": "雷士照明2024年营收222.9亿元，同比下降5.8%。",
+      "file": "text_injectable/GD-07_跨章数值冲突：雷士2024营收22亿_v.md"
+    },
+    {
+      "id": "GD-08",
+      "title": "份额倒挂：佛山90.48亿/1.27% vs 公牛照明83.31亿/1.31%",
+      "class": "一致性偏差",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L1772-1800（表4-1）",
+      "hint": "营收更高者份额反而更低，隐含分母不一致",
+      "note": "倒挂检测需跨表语义推理（份额=营收/市场规模的分母一致性），T1 决策暂不做代码检测，回归中不计入 code 层 TP 分母——2026-10-19 修正评分假象",
+      "snippet": "| 佛山照明 | 90.48 | 1.27% | 通用照明 |\n| 公牛集团（照明业务） | 83.31 | 1.31% | 智能电工照明 |",
+      "file": "text_injectable/GD-08_份额倒挂：佛山90.48亿_1.27__.md"
+    },
+    {
+      "id": "GD-09",
+      "title": "增速方向错误：木林森2024同比-0.35%（实算-3.57%）",
+      "class": "数值漂移",
+      "detector": "code+claude",
+      "evidence": "baseline/report_merged.md L5302 vs 表5-30/表9-1（175.36→169.10亿）",
+      "hint": "175.36→169.10 实算 -3.57%，净利 4.30→3.74 实算 -13.0%",
+      "snippet": "木林森2024年营收169.10亿元，同比下降0.35%；归母净利润3.74亿元，同比增长3.48%。",
+      "file": "text_injectable/GD-09_增速方向错误：木林森2024同比-0.3.md"
+    },
+    {
+      "id": "GD-10",
+      "title": "定性方向矛盾：流动比率/速动比率「高于」vs「低于」行业平均",
+      "class": "一致性偏差",
+      "detector": "claude",
+      "evidence": "baseline/report_merged.md L1650（高于）vs L4567/L5314（低于）",
+      "hint": "同一指标两章方向相反",
+      "snippet": "流动比率2.5，速动比率2.0，均低于行业平均水平，财务风险较低。",
+      "file": "text_injectable/GD-10_定性方向矛盾：流动比率_速动比率「高于」.md"
+    },
+    {
+      "id": "GD-11",
+      "title": "生成退化：术语表模板爆破（渠道X化伪术语）",
+      "class": "质量退化",
+      "detector": "code",
+      "evidence": "baseline/report_merged.md L5665/L5697-5699（约200条，占第13章2/3）",
+      "hint": "退化检测：重复n-gram/模板爆破应命中",
+      "snippet": "| 渠道孔子化 | Confucius | 销售渠道的孔子化 |\n| 渠道NFT化 | Channel NFT | 销售渠道的NFT化 |\n| 渠道刘敬化 | Liu Jing | 销售渠道的刘敬化 |\n| 渠道刘敬化 | Liu Jing | 销售渠道的刘敬化 |\n| 渠道刘敬化 | Liu Jing | 销售渠道的刘敬化 |",
+      "file": "text_injectable/GD-11_生成退化：术语表模板爆破（渠道X化伪术语.md"
+    },
+    {
+      "id": "GD-12",
+      "title": "跨章逐字复制段落",
+      "class": "一致性偏差",
+      "detector": "code",
+      "evidence": "baseline/report_merged.md 第2章§2.5≡第11章§11.5.1；第8章§8.5≡第11章§11.4.1",
+      "hint": "结构检查：段落级重复检测应命中",
+      "snippet": "__DUP_PARA__",
+      "file": "text_injectable/GD-12_跨章逐字复制段落.md"
+    },
+    {
+      "id": "GD-13",
+      "title": "字数自报失真（模型自报 vs 脚本实测偏差>10%）",
+      "class": "数值漂移",
+      "detector": "code",
+      "evidence": "基线工作链：progress.md ch5声称37,000字/实测16,283字符（多报127%）",
+      "hint": "字数统计工具实测 vs 台账自报值比对",
+      "snippet": "__META__:progress_claim=37000",
+      "file": "text_injectable/GD-13_字数自报失真（模型自报_vs_脚本实测偏.md"
+    },
+    {
+      "id": "GD-14",
+      "title": "字数口径混乱（非空白字符 vs 汉字数混用）",
+      "class": "数值漂移",
+      "detector": "code",
+      "evidence": "基线工作链：「108,737非空白字符」与「217,643字」并存",
+      "hint": "台账/progress 中出现两种口径即命中",
+      "snippet": "__META__:mixed_unit",
+      "file": "text_injectable/GD-14_字数口径混乱（非空白字符_vs_汉字数混.md"
+    },
+    {
+      "id": "GD-15",
+      "title": "台账停更（伪造状态：第3章后 data_ledger 无新增条目）",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "基线工作链：data_ledger.md 停于16:26（第2章），第3~13章数据未入台账",
+      "hint": "台账新鲜度校验：章节含新数值但台账无对应条目",
+      "snippet": "__META__:stale_ledger",
+      "file": "text_injectable/GD-15_台账停更（伪造状态：第3章后_data_.md"
+    },
+    {
+      "id": "GD-16",
+      "title": "日期错误（落款/台账写 2025-07-09，实际 2026-10）",
+      "class": "编造事实",
+      "detector": "code",
+      "evidence": "基线 progress.md 全部日期为 2025-07-09；报告落款 2025年7月",
+      "hint": "检查器：文档日期与当前日期偏差超阈值即命中",
+      "snippet": "**报告日期：** 2025年7月",
+      "file": "text_injectable/GD-16_日期错误（落款_台账写_2025-07-.md"
+    }
+  ],
+  "process_checklist": [
+    {
+      "id": "PC-01",
+      "title": "stream_error 断流需人工继续",
+      "covered_by": "T4 验收：模拟断流无人干预恢复（收敛条件5）"
+    },
+    {
+      "id": "PC-02",
+      "title": "长期记忆污染新任务（复述 v1 框架）",
+      "covered_by": "T5 记忆隔离：Loop① 准备检查单"
+    },
+    {
+      "id": "PC-03",
+      "title": "模型自写合并脚本产出乱码+膨胀3.45×",
+      "covered_by": "T2 验收：merge_chapters 体量校验拦住膨胀"
+    },
+    {
+      "id": "PC-04",
+      "title": "运行时日期缺失（模型写错日期）",
+      "covered_by": "T5 验收：日期注入后落款正确（文本表现由 GD-16 覆盖）"
+    }
+  ]
+}
