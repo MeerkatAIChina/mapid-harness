@@ -172,6 +172,27 @@
       "hint": "检查器：figure_companion 应命中（块外 ±窗口内无来源标注与解读）",
       "snippet": "| 企业 | 2024年营收（亿元） | 毛利率 |\n|---|---|---|\n| 欧普照明 | 70.02 | 39.3% |\n| 雷士照明 | 55.61 | 28.4% |\n| 佛山照明 | 90.48 | 18.6% |",
       "file": "text_injectable/GD-17_图表缺配套：孤立表格无来源题注与解读.md"
+    },
+    {
+      "id": "GD-18",
+      "class": "尺子口径",
+      "detector": "negative",
+      "snippet": "__META__",
+      "note": "阴性：numeric_consistency 对伪造台账的多年份分行/粒度差异行零命中（negative_violations 判定）"
+    },
+    {
+      "id": "GD-19",
+      "class": "一致性偏差",
+      "detector": "code",
+      "target": "结论",
+      "snippet": "欧普照明毛利率为 36.91%（见第 3 章）。"
+    },
+    {
+      "id": "GD-20",
+      "class": "一致性偏差",
+      "detector": "code",
+      "target": "结论",
+      "snippet": "中国照明行业未来三年增速预计为 88%~99%（见第 2 章）。"
     }
   ],
   "process_checklist": [

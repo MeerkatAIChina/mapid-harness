@@ -37,6 +37,7 @@ CHECKER_TO_DEFECTS: dict[str, list[str]] = {
     "numeric_consistency": ["GD-07", "GD-09"],
     "figure_companion": ["GD-17"],
     "structure": ["GD-12", "GD-16"],
+    "conclusion_source": ["GD-19", "GD-20"],
 }
 
 DUP_PARA = "本段为逐字重复测试段落：双碳政策推动照明行业能效升级，节能改造工程加速落地。（注入用重复段）"
@@ -54,7 +55,14 @@ FORGED_LEDGER_TABLE = """
 | 雷士照明2024年营收 | 222.9 | 亿元 | 2024年报 | 雷士国际2024年报 | 09 |
 | 木林森2024营收同比增速 | -0.35% | % | 2024年报 | 木林森2024年报 | 05 |
 | 木林森2024营收同比增速 | -3.57% | % | 2024年报实算（175.36→169.10亿） | 木林森2024年报 | 09 |
+| 欧普照明营业收入 | 77.95 | 亿元 | 2023年报 | 欧普照明2023年报 | 03 |
+| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 欧普照明2024年报 | 03 |
+| 欧普照明营业收入 | 69.70 | 亿元 | 2025年报 | 欧普照明2025年报 | 03 |
+| 欧普照明上市时间 | 2016 年 6 月 | — | — | 招股说明书 | 03 |
+| 欧普照明上市时间 | 2016 年 | — | — | 招股说明书 | 03 |
 """
+# GD-18 阴性行：numeric_consistency 对这些指标名的任何命中均为违规（误报回归）
+NEGATIVE_LEDGER_MARKERS = ("欧普照明营业收入", "欧普照明上市时间")
 FORGED_LEDGER_DEFECTS = {"GD-07", "GD-09"}
 
 
@@ -97,6 +105,10 @@ def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict
         if snippet == "__DUP_PARA__":
             snippet = DUP_PARA
             targets = [chapters[k % len(chapters)], chapters[(k + 1) % len(chapters)]]
+        elif d.get("target"):
+            targets = [c for c in chapters if d["target"] in c.name]
+            if not targets:
+                raise SystemExit(f"manifest {d['id']} target={d['target']!r} 无匹配章节")
         else:
             targets = [chapters[k % len(chapters)]]
         for target in targets:
@@ -160,6 +172,14 @@ def score(findings: list[dict], truth: list[dict], manifest: dict) -> dict:
     # 3. FP 候选：不对应任何缺陷类的 finding
     fp_candidates = [f for f in findings if not CHECKER_TO_DEFECTS.get(f["check"])]
 
+    # 4. GD-18 阴性违规：numeric_consistency 命中阴性行指标名（误报回归）
+    negative_violations = [
+        f
+        for f in findings
+        if f["check"] == "numeric_consistency"
+        and any(m in f["message"] + f["evidence"] for m in NEGATIVE_LEDGER_MARKERS)
+    ]
+
     per_defect = {
         d: {
             "hit": bool(hit_by_defect[d]),
@@ -174,6 +194,7 @@ def score(findings: list[dict], truth: list[dict], manifest: dict) -> dict:
         "per_defect": per_defect,
         "tp_rate": tp / len(expected) if expected else 1.0,
         "fp_candidates": fp_candidates,
+        "negative_violations": negative_violations,
     }
 
 
@@ -211,6 +232,9 @@ def main() -> None:
     for d, v in result["per_defect"].items():
         mark = "✅" if v["hit"] else "❌"
         print(f"  {mark} {d} (detector={v['detector']}, findings={v['findings']})")
+    print(f"\nGD-18 阴性违规（应=0）: {len(result['negative_violations'])} 条")
+    for f in result["negative_violations"]:
+        print(f"  {f['file']}:{f['line']} {f['message']}")
     print(f"\nFP 候选（需人工裁决）: {len(result['fp_candidates'])} 条")
     by_checker: dict[str, int] = {}
     for f in result["fp_candidates"]:
