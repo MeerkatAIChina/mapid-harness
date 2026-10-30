@@ -479,3 +479,153 @@ def test_cli_writes_json(tmp_path: Path, capsys) -> None:  # type: ignore[no-unt
     assert "summary" in data and "findings" in data
     stdout = capsys.readouterr().out
     assert "findings" in stdout or "发现" in stdout
+
+
+# ---------------------------------------------------------------------------
+# 6b. numeric_consistency（M1 修正：分组键含口径/年份 + 粒度兼容）
+# ---------------------------------------------------------------------------
+
+
+def _numeric_ledger(rows: list[str]) -> str:
+    return "\n".join(["# 数据台账", "", LEDGER_HEADER, LEDGER_SEP, *rows, ""])
+
+
+def test_numeric_multi_year_rows_clean(tmp_path: Path) -> None:
+    """M1：同指标多年份分行（口径/年份不同）= 正常台账，不报（round-3 误报型）。"""
+    ws = make_ws(
+        tmp_path,
+        ledger=_numeric_ledger([
+            "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
+            "| 欧普照明营业收入 | 69.70 | 亿元 | 2025年报 | 年报 | 03 |",
+            "| 欧普照明营业收入 | 77.95 | 亿元 | 2023年报 | 年报 | 03 |",
+        ]),
+    )
+    findings = checks.check_numeric_consistency(ws)
+    assert findings == []
+
+
+def test_numeric_same_caliber_conflict_hit(tmp_path: Path) -> None:
+    """M1：同指标同口径两个不同数值 = 真冲突，应报。"""
+    ws = make_ws(
+        tmp_path,
+        ledger=_numeric_ledger([
+            "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
+            "| 欧普照明营业收入 | 79.06 | 亿元 | 2024年报 | 年报 | 03 |",
+        ]),
+    )
+    findings = checks.check_numeric_consistency(ws)
+    assert any(f["check"] == "numeric_consistency" for f in findings)
+
+
+def test_numeric_granularity_substring_clean(tmp_path: Path) -> None:
+    """M1：同口径粒度差异（「2016 年」⊂「2016 年 6 月」）不报。"""
+    ws = make_ws(
+        tmp_path,
+        ledger=_numeric_ledger([
+            "| 欧普照明上市时间 | 2016 年 6 月 | — | — | 招股说明书 | 03 |",
+            "| 欧普照明上市时间 | 2016 年 | — | — | 招股说明书 | 03 |",
+        ]),
+    )
+    findings = checks.check_numeric_consistency(ws)
+    assert findings == []
+
+
+def test_numeric_caliber_annotation_conflict_hit(tmp_path: Path) -> None:
+    """GD-09 型：口径带实算注释（「2024年报」⊂「2024年报实算（…）」）仍算同口径，应报。"""
+    ws = make_ws(
+        tmp_path,
+        ledger=_numeric_ledger([
+            "| 木林森2024营收同比增速 | -0.35% | % | 2024年报 | 木林森2024年报 | 05 |",
+            "| 木林森2024营收同比增速 | -3.57% | % | 2024年报实算（175.36→169.10亿） | 木林森2024年报 | 09 |",
+        ]),
+    )
+    findings = checks.check_numeric_consistency(ws)
+    assert any(f["check"] == "numeric_consistency" for f in findings)
+
+
+# ---------------------------------------------------------------------------
+# 11. conclusion_source（M3：结论章出处锚点核对，内含区间比对）
+# ---------------------------------------------------------------------------
+
+CONCLUSION_CH = "12_结论与战略建议.md"
+
+
+def test_conclusion_source_clean(tmp_path: Path) -> None:
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "03_剖析.md": "欧普照明 2024 年报营收 70.96 亿元，毛利率 39.16%。" ,
+            CONCLUSION_CH: "营收 70.96 亿元（见第 3 章），毛利率 39.16%（见第 3 章）。",
+        },
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert findings == []
+
+
+def test_conclusion_source_tampered_hit(tmp_path: Path) -> None:
+    """GD-19：结论章数字与前文不一致（39.16 → 36.91）应报。"""
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "03_剖析.md": "欧普照明 2024 年报毛利率 39.16%。",
+            CONCLUSION_CH: "毛利率 36.91%（见第 3 章）。",
+        },
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert any(f["check"] == "conclusion_source" and "36.91" in f["message"] for f in findings)
+
+
+def test_conclusion_source_adjacent_range_hit(tmp_path: Path) -> None:
+    """GD-20/E9：区间边界相接（12–14 vs 8–12）判矛盾，应报。"""
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "03_剖析.md": "净利率维持在 8%~12% 区间。",
+            CONCLUSION_CH: "净利率 12%~14%（见第 3 章）。",
+        },
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert any(f["check"] == "conclusion_source" for f in findings)
+
+
+def test_conclusion_source_point_in_range_hit(tmp_path: Path) -> None:
+    """结论章区间不能被被引章里落在区间内的无关点值「支持」（GD-20 防漏检）。"""
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "09_财务.md": "2025 年净利率 13.21%。",
+            CONCLUSION_CH: "净利率约 12%~14%（见第 9 章）。",
+        },
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert any(f["check"] == "conclusion_source" for f in findings)
+
+
+def test_conclusion_source_overlapping_range_clean(tmp_path: Path) -> None:
+    """结论章区间与被引章区间真实重叠（12–14 vs 13–15）→ 同值证据，不报。"""
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "09_财务.md": "净利率维持在 13%~15% 区间。",
+            CONCLUSION_CH: "净利率约 12%~14%（见第 9 章）。",
+        },
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert findings == []
+
+
+def test_conclusion_source_no_anchor_clean(tmp_path: Path) -> None:
+    ws = make_ws(
+        tmp_path,
+        chapters={CONCLUSION_CH: "本章没有任何出处锚点，数字 123 也不管。"},
+    )
+    assert checks.check_conclusion_source(ws) == []
+
+
+def test_conclusion_source_missing_chapter_hit(tmp_path: Path) -> None:
+    ws = make_ws(
+        tmp_path,
+        chapters={CONCLUSION_CH: "营收 70.96 亿元（见第 7 章）。"},
+    )
+    findings = checks.check_conclusion_source(ws)
+    assert any("不存在" in f["message"] or "第 7 章" in f["message"] for f in findings)

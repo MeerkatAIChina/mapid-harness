@@ -11,6 +11,11 @@ from datetime import date
 from pathlib import Path
 from typing import TypedDict
 
+from octop_harness.report_qa.numparse import (
+    extract_spans,
+    spans_support,
+    values_compatible,
+)
 from octop_harness.report_qa.constants import (
     APPENDIX_MARK,
     ATTRIBUTION_RE,
@@ -601,37 +606,76 @@ def check_unsourced_precise(workspace: Path) -> list[Finding]:
 # ---------------------------------------------------------------------------
 
 
+def _ledger_col_index(header: list[str], field: str) -> int | None:
+    """按主列名找列下标（「口径/年份」按「口径」计）。"""
+    for i, h in enumerate(header):
+        if h.split("/")[0].strip() == field:
+            return i
+    return None
+
+
 def check_numeric_consistency(workspace: Path) -> list[Finding]:
-    """GD-07：台账内同「指标名」出现不同「数值」→ 冲突。倒挂检测暂不做。"""
+    """GD-07：台账内同「指标名 + 口径/年份」出现不兼容「数值」→ 冲突。
+
+    M1 修正（R3）：分组键补「口径/年份」——同指标多年份分行是台账的正常
+    形态（round-3 曾因此误报 14 条）；同组内数值经 values_compatible 判定
+    （粒度差异互为子串 = 兼容，如「2016 年」⊂「2016 年 6 月」）。倒挂检测暂不做。
+    """
     ledger_path = workspace / LEDGER_FILENAME
     if not ledger_path.is_file():
         return []
-    values: dict[str, list[tuple[str, int]]] = {}
+    rows_by_name: dict[str, list[tuple[str, str, int]]] = {}
     for _, header, rows in _parse_ledger_tables(_read(ledger_path)):
         if not _header_covers(header):
             continue
-        name_idx = header.index("指标名")
-        value_idx = header.index("数值")
+        name_idx = _ledger_col_index(header, "指标名")
+        value_idx = _ledger_col_index(header, "数值")
+        caliber_idx = _ledger_col_index(header, "口径")
+        if name_idx is None or value_idx is None:
+            continue
         for lineno, cells in rows:
-            if name_idx < len(cells) and value_idx < len(cells):
-                norm = re.sub(r"[,\s]", "", cells[value_idx])
-                values.setdefault(cells[name_idx], []).append((norm, lineno))
-    findings: list[Finding] = []
-    for name, entries in values.items():
-        distinct = {v for v, _ in entries}
-        if len(distinct) > 1:
-            first_line = entries[0][1]
-            detail = "、".join(f"{v}（行 {ln}）" for v, ln in entries)
-            findings.append(
-                _finding(
-                    "numeric_consistency",
-                    SEVERITY_HIGH,
-                    LEDGER_FILENAME,
-                    first_line,
-                    f"数值冲突：指标「{name}」在台账中有 {len(distinct)} 个不同数值（GD-07）",
-                    detail,
-                )
+            if name_idx >= len(cells) or value_idx >= len(cells):
+                continue
+            caliber = (
+                cells[caliber_idx].strip()
+                if caliber_idx is not None and caliber_idx < len(cells)
+                else ""
             )
+            rows_by_name.setdefault(cells[name_idx], []).append(
+                (caliber, cells[value_idx], lineno)
+            )
+    findings: list[Finding] = []
+    for name, items in rows_by_name.items():
+        # 口径兼容聚类：「2024年报」⊂「2024年报实算（…）」视为同口径（GD-09 型），
+        # 「2024年报」vs「2025年报」不兼容（多年份分行，round-3 误报型）
+        clusters: list[list[tuple[str, str, int]]] = []
+        for item in items:
+            for cluster in clusters:
+                if values_compatible(item[0], cluster[0][0]):
+                    cluster.append(item)
+                    break
+            else:
+                clusters.append([item])
+        for cluster in clusters:
+            entries = [(value, lineno) for _caliber, value, lineno in cluster]
+            # 两两兼容判定：同义重复（粒度差异）合并；存在互不兼容即冲突
+            distinct: list[tuple[str, int]] = []
+            for value, lineno in entries:
+                if not any(values_compatible(value, kept) for kept, _ in distinct):
+                    distinct.append((value, lineno))
+            if len(distinct) > 1:
+                first_line = entries[0][1]
+                detail = "、".join(f"{v}（行 {ln}）" for v, ln in distinct)
+                findings.append(
+                    _finding(
+                        "numeric_consistency",
+                        SEVERITY_HIGH,
+                        LEDGER_FILENAME,
+                        first_line,
+                        f"数值冲突：指标「{name}」在台账中有 {len(distinct)} 个不同数值（GD-07）",
+                        detail,
+                    )
+                )
     return findings
 
 
@@ -811,6 +855,77 @@ def check_structure(workspace: Path) -> list[Finding]:
 # 汇总入口
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 8. conclusion_source（M3：结论章出处锚点核对，内含区间比对）
+# ---------------------------------------------------------------------------
+
+_ANCHOR_LINE_RE = re.compile(r"[（(]\s*见第\s*(\d+)\s*章")
+_CONCLUSION_NAME_RE = re.compile(r"结论")
+
+
+def check_conclusion_source(workspace: Path) -> list[Finding]:
+    """结论章「数字 +（见第 X 章）」锚点回查（GD-19/E1 型、GD-20/E9 型）。
+
+    对结论章每个带出处锚点的行：抽取行内数值（锚点章号与年份除外），
+    到被引用章节检索同值证据（spans_support：点值相对容差命中 / 区间
+    真实重叠）。找不到即报。
+
+    已知盲区（设计文档_R3 §3.2）：未挂锚点的正文间区间冲突不覆盖，深审兜底。
+    """
+    chapter_files = _chapter_files(workspace)
+    conclusions = [(num, p) for num, p in chapter_files if _CONCLUSION_NAME_RE.search(p.name)]
+    if not conclusions:
+        return []
+    _, conclusion_path = conclusions[0]
+
+    chapter_spans: dict[int, list] = {}
+    for num, path in chapter_files:
+        if path == conclusion_path or num == 0:
+            continue
+        chapter_spans[num] = extract_spans(_read(path))
+
+    findings: list[Finding] = []
+    rel = _rel(workspace, conclusion_path)
+    for lineno, line in enumerate(_read(conclusion_path).splitlines(), start=1):
+        anchors = [int(a) for a in _ANCHOR_LINE_RE.findall(line)]
+        if not anchors:
+            continue
+        for span in extract_spans(line):
+            supported = False
+            missing_anchor = False
+            for anchor in anchors:
+                spans = chapter_spans.get(anchor)
+                if spans is None:
+                    missing_anchor = True
+                    continue
+                if any(spans_support(span, cand) for cand in spans):
+                    supported = True
+                    break
+            if supported:
+                continue
+            if missing_anchor and not any(a in chapter_spans for a in anchors):
+                msg = (
+                    f"结论章数值 {span.raw} 的出处锚点指向不存在的章节"
+                    f"（第 {'、'.join(str(a) for a in anchors)} 章）（GD-19）"
+                )
+            else:
+                msg = (
+                    f"结论章数值 {span.raw} 标注（见第 {'、'.join(str(a) for a in anchors)} 章）"
+                    f"但在该章未找到一致数值（GD-19/GD-20）"
+                )
+            findings.append(
+                _finding(
+                    "conclusion_source",
+                    SEVERITY_HIGH,
+                    rel,
+                    lineno,
+                    msg,
+                    line.strip()[:120],
+                )
+            )
+    return findings
+
+
 CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "degeneration": check_degeneration,
     "word_count": check_word_count,
@@ -820,6 +935,7 @@ CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "numeric_consistency": check_numeric_consistency,
     "figure_companion": check_figure_companion,
     "structure": check_structure,
+    "conclusion_source": check_conclusion_source,
 }
 
 
