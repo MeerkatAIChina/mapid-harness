@@ -1470,14 +1470,33 @@ class HarnessAgent:
 
         # Meerkat 报告章节门禁（默认关）：report_stats 章评估附言 +
         # 开新章脏章阻断 + merge 终闸。设计文档_R3 §4。
-        if cfg.chapter_gate_enabled:
+        # Octop 宿主不传 chapter_gate_* 字段时，可用环境变量开启（零内核路径）：
+        #   OCTOP_CHAPTER_GATE_ENABLED=1 [+ OCTOP_CHAPTER_GATE_WORKSPACE=目录]
+        import os as _os
+
+        gate_env = _os.environ.get("OCTOP_CHAPTER_GATE_ENABLED", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if cfg.chapter_gate_enabled or gate_env:
             from octop_harness.middleware.chapter_gate import ChapterGateMiddleware
 
+            gate_workspace = (
+                cfg.chapter_gate_workspace_root
+                or _os.environ.get("OCTOP_CHAPTER_GATE_WORKSPACE")
+                or cfg.workspace_dir
+            )
             chain.append(
                 ChapterGateMiddleware(
-                    workspace_root=cfg.chapter_gate_workspace_root or cfg.workspace_dir,
+                    workspace_root=gate_workspace,
                     max_repairs=cfg.chapter_gate_max_repairs,
                 )
+            )
+            logger.info(
+                "chapter_gate: enabled (workspace=%s, max_repairs=%d)",
+                gate_workspace,
+                cfg.chapter_gate_max_repairs,
             )
 
         if cfg.mcp_server_configs:
