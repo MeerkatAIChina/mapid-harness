@@ -1,0 +1,111 @@
+{
+  "summary": {
+    "total_findings": 12,
+    "by_check": {
+      "structure": 1,
+      "word_count": 11
+    },
+    "by_severity": {
+      "medium": 12
+    }
+  },
+  "high_risk_data": [],
+  "findings": [
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/01_研究背景方法与数据来源说明.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第1章自报 8,000，实测非空白字符 8,945，偏差 11%",
+      "evidence": "claimed=8000, measured=8945"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/02_中国及全球照明行业全景.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第2章自报 12,000，实测非空白字符 10,746，偏差 12%",
+      "evidence": "claimed=12000, measured=10746"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/05_重点竞品深度分析上.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第5章自报 12,000，实测非空白字符 9,215，偏差 30%",
+      "evidence": "claimed=12000, measured=9215"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/06_重点竞品深度分析下.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第6章自报 12,000，实测非空白字符 7,264，偏差 65%",
+      "evidence": "claimed=12000, measured=7264"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/07_产品线与技术参数横向对比.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第7章自报 10,000，实测非空白字符 16,913，偏差 41%",
+      "evidence": "claimed=10000, measured=16913"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/08_渠道与营销对比.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第8章自报 10,000，实测非空白字符 4,502，偏差 122%",
+      "evidence": "claimed=10000, measured=4502"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/09_智能照明与新技术布局对比.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第9章自报 10,000，实测非空白字符 3,659，偏差 173%",
+      "evidence": "claimed=10000, measured=3659"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/10_财务与经营指标综合对标.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第10章自报 10,000，实测非空白字符 3,399，偏差 194%",
+      "evidence": "claimed=10000, measured=3399"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/11_SWOT与战略群组分析.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第11章自报 9,000，实测非空白字符 4,121，偏差 118%",
+      "evidence": "claimed=9000, measured=4121"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/12_行业趋势研判与欧普机会威胁.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第12章自报 10,000，实测非空白字符 3,102，偏差 222%",
+      "evidence": "claimed=10000, measured=3102"
+    },
+    {
+      "check": "word_count",
+      "severity": "medium",
+      "file": "chapters/13_结论与战略建议.md",
+      "line": 1,
+      "message": "GD-13 字数自报失真：第13章自报 9,000，实测非空白字符 4,879，偏差 84%",
+      "evidence": "claimed=9000, measured=4879"
+    },
+    {
+      "check": "structure",
+      "severity": "medium",
+      "file": "chapters/01_研究背景方法与数据来源说明.md",
+      "line": 32,
+      "message": "跨章逐字重复段落：出现在 01_研究背景方法与数据来源说明.md、03_欧普照明公司深度剖析.md（GD-12）",
+      "evidence": ">数据解读：在行业整体下滑的背景下，欧普照明的营收降幅（-8.96%）与LED通用照明市场规模下滑幅度大致相当，说明公司基本盘未出现异常失血。但更值得关注的是其净利率逆势提升至12.7%——这反映了公司在产品结构优化（高毛利产品占比提升）和费用管控方面的努力。然而，\"重销售轻研发\"的标签仍是市场对其长期竞争力的核心质疑。"
+    }
+  ]
+}
