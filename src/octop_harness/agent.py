@@ -1468,6 +1468,18 @@ class HarnessAgent:
             )
         )
 
+        # Meerkat 报告章节门禁（默认关）：report_stats 章评估附言 +
+        # 开新章脏章阻断 + merge 终闸。设计文档_R3 §4。
+        if cfg.chapter_gate_enabled:
+            from octop_harness.middleware.chapter_gate import ChapterGateMiddleware
+
+            chain.append(
+                ChapterGateMiddleware(
+                    workspace_root=cfg.chapter_gate_workspace_root or cfg.workspace_dir,
+                    max_repairs=cfg.chapter_gate_max_repairs,
+                )
+            )
+
         if cfg.mcp_server_configs:
             chain.append(
                 MCPToolMiddleware(

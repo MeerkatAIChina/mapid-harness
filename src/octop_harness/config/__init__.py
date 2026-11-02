@@ -685,6 +685,14 @@ class HarnessAgentConfig:
     tool_guard_mode: Literal["block", "warn", "require_approval"] = "block"
     tool_guard_rules_dir: str | Path | None = None
 
+    # —— Chapter gate (Meerkat 报告章节门禁，设计文档_R3 §4) ——
+    # 默认关：开启后挂 ChapterGateMiddleware，report_stats 章评估附言 +
+    # 开新章脏章阻断 + merge 终闸。``chapter_gate_workspace_root`` 为报告
+    # workspace（含 chapters/ 的目录），None 时回落到 ``workspace_dir``。
+    chapter_gate_enabled: bool = False
+    chapter_gate_max_repairs: int = 2
+    chapter_gate_workspace_root: str | Path | None = None
+
     # —— Ask user (agent-initiated question) ——
     # Mounts the ``ask_user_question`` tool and pauses the graph on it via a
     # ``respond``-only HITL interrupt. Independent of ``SecurityPolicy``: this
@@ -1079,6 +1087,11 @@ class HarnessAgentConfig:
             "tool_guard_mode": self.tool_guard_mode,
             "tool_guard_rules_dir": _path_to_str(self.tool_guard_rules_dir)
             if self.tool_guard_rules_dir is not None
+            else None,
+            "chapter_gate_enabled": self.chapter_gate_enabled,
+            "chapter_gate_max_repairs": self.chapter_gate_max_repairs,
+            "chapter_gate_workspace_root": _path_to_str(self.chapter_gate_workspace_root)
+            if self.chapter_gate_workspace_root is not None
             else None,
             "ask_user_enabled": self.ask_user_enabled,
             "team_enabled": self.team_enabled,

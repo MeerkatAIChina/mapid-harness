@@ -1,0 +1,360 @@
+"""ChapterGateMiddleware 状态机测试（设计文档_R3 §4.2 全分支 + 三个实现钉）。
+
+分支覆盖：
+- report_stats 评估 → clean/dirty 附言注入；
+- 开新章拦截（write_file / edit_file 两个写工具面）；
+- N=2 放行（logger.warning + 放行附言 + 额度复测复位）；
+- 修改脏章置 unevaluated（修复路径永远不拦）；
+- 非章节文件永远不拦；
+- 骨架 write + edit 填充 = 同一次开章（实现钉 1）；
+- merge 终闸阻断/放行。
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Awaitable
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+from langchain_core.messages import ToolMessage
+
+from octop_harness.middleware.chapter_gate import ChapterGateMiddleware
+
+LEDGER = """# 数据台账
+
+| 指标 | 数值 | 单位 | 口径 | 来源 | 首现章节 |
+| --- | --- | --- | --- | --- | --- |
+| 已有指标 | 1 | 个 | 2024年报 | 年报 | 03 |
+"""
+
+DIRTY_CH = "06_产品线对比.md"
+CLEAN_CH = "03_剖析.md"
+NEW_CH = "07_渠道.md"
+
+DIRTY_TEXT = "本章营收 25,000 万元，同比增长 8.96%。\n"
+CLEAN_TEXT = "本章为定性描述，没有任何精确数值。\n"
+
+
+def make_ws(
+    tmp_path: Path,
+    chapters: dict[str, str],
+    ledger: str | None = LEDGER,
+) -> Path:
+    ws = tmp_path / "ws"
+    (ws / "chapters").mkdir(parents=True)
+    for name, text in chapters.items():
+        (ws / "chapters" / name).write_text(text, encoding="utf-8")
+    if ledger is not None:
+        (ws / "data_ledger.md").write_text(ledger, encoding="utf-8")
+    return ws
+
+
+def _request(name: str, args: dict) -> MagicMock:
+    req = MagicMock()
+    req.tool_call = {"name": name, "id": "call_1", "args": args}
+    return req
+
+
+def _handler(calls: list[str] | None = None, content: str = "ok"):
+    async def run(req) -> ToolMessage:
+        if calls is not None:
+            calls.append(req.tool_call["name"])
+        return ToolMessage(
+            content=content,
+            name=req.tool_call["name"],
+            tool_call_id="call_1",
+        )
+
+    return run
+
+
+async def _stats(mw: ChapterGateMiddleware, chapter_path: str) -> ToolMessage:
+    return await mw.awrap_tool_call(
+        _request("report_stats", {"path": chapter_path}), _handler(content="统计略")
+    )
+
+
+async def _write(
+    mw: ChapterGateMiddleware,
+    tool: str,
+    path: str,
+    calls: list[str] | None = None,
+) -> ToolMessage:
+    return await mw.awrap_tool_call(
+        _request(tool, {"file_path": path}), _handler(calls)
+    )
+
+
+# ---------------------------------------------------------------------------
+# report_stats 触点：评估 + 附言
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stats_clean_chapter_pass_postscript(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert "[chapter_gate] 本章检查通过" in out.content
+    assert mw._chapters[CLEAN_CH].status == "clean"
+
+
+@pytest.mark.asyncio
+async def test_stats_dirty_chapter_findings_postscript(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, f"chapters/{DIRTY_CH}")
+    assert "[chapter_gate] 本章检查发现" in out.content
+    assert "修复后请再次调用 report_stats 复测" in out.content
+    st = mw._chapters[DIRTY_CH]
+    assert st.status == "dirty"
+    assert any(f["check"] == "unsourced_precise" for f in st.findings)
+
+
+@pytest.mark.asyncio
+async def test_stats_directory_evaluates_all_chapters(tmp_path: Path) -> None:
+    """模型实测习惯是目录统计（report_stats chapters/）——评估全部章并给合并附言。"""
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT, CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, "chapters")
+    assert "[chapter_gate] 本次检查 2 章：1 章通过，1 章有问题" in out.content
+    assert DIRTY_CH in out.content
+    assert mw._chapters[DIRTY_CH].status == "dirty"
+    assert mw._chapters[CLEAN_CH].status == "clean"
+    # 目录统计标脏后，开新章同样被拦
+    calls: list[str] = []
+    blocked = await _write(mw, "write_file", f"chapters/{NEW_CH}", calls)
+    assert blocked.status == "error"
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_stats_directory_all_clean(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, "chapters")
+    assert "1 章通过，0 章有问题" in out.content
+    assert "可继续下一章" in out.content
+
+
+# ---------------------------------------------------------------------------
+# 开新章拦截（write_file / edit_file 双面）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_open_new_chapter_blocked_when_dirty(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    calls: list[str] = []
+    out = await _write(mw, "write_file", f"chapters/{NEW_CH}", calls)
+    assert out.status == "error"
+    assert "[chapter_gate] 门禁" in out.content
+    assert calls == []  # handler 未被调用
+    assert mw._chapters[DIRTY_CH].repair_rounds == 1
+
+
+@pytest.mark.asyncio
+async def test_open_new_chapter_blocked_via_edit_file(tmp_path: Path) -> None:
+    """实现钉 1：edit_file 与 write_file 同一拦截面。"""
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    calls: list[str] = []
+    out = await _write(mw, "edit_file", f"chapters/{NEW_CH}", calls)
+    assert out.status == "error"
+    assert calls == []
+    assert mw._chapters[DIRTY_CH].repair_rounds == 1
+
+
+@pytest.mark.asyncio
+async def test_repair_limit_releases_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    await _write(mw, "write_file", f"chapters/{NEW_CH}")
+    await _write(mw, "write_file", f"chapters/{NEW_CH}")
+    assert mw._chapters[DIRTY_CH].repair_rounds == 2
+    calls: list[str] = []
+    with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
+        out = await _write(mw, "write_file", f"chapters/{NEW_CH}", calls)
+    assert out.status != "error"
+    assert calls == ["write_file"]  # 放行
+    assert "已达自修上限" in out.content  # 放行附言
+    assert any("已达自修上限" in rec.message for rec in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# 状态机闭环：修改脏章置 unevaluated → 复测刷新 → 放行
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_modify_dirty_chapter_allowed_and_marks_unevaluated(
+    tmp_path: Path,
+) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    calls: list[str] = []
+    out = await _write(mw, "edit_file", f"chapters/{DIRTY_CH}", calls)
+    assert out.status != "error"
+    assert calls == ["edit_file"]  # 修脏章永远不拦
+    assert mw._chapters[DIRTY_CH].status == "unevaluated"
+
+
+@pytest.mark.asyncio
+async def test_full_repair_loop_closes(tmp_path: Path) -> None:
+    """dirty → 阻断 → 修脏章 → 复测 clean（额度复位）→ 开新章放行。"""
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    blocked = await _write(mw, "write_file", f"chapters/{NEW_CH}")
+    assert blocked.status == "error"
+    await _write(mw, "edit_file", f"chapters/{DIRTY_CH}")
+    # 模拟修复落盘：内容换成干净文本
+    (ws / "chapters" / DIRTY_CH).write_text(CLEAN_TEXT, encoding="utf-8")
+    out = await _stats(mw, f"chapters/{DIRTY_CH}")
+    assert "本章检查通过" in out.content
+    st = mw._chapters[DIRTY_CH]
+    assert st.status == "clean"
+    assert st.repair_rounds == 0  # 复测通过额度复位
+    calls = []
+    out = await _write(mw, "write_file", f"chapters/{NEW_CH}", calls)
+    assert out.status != "error"
+    assert calls == ["write_file"]
+
+
+# ---------------------------------------------------------------------------
+# 不拦的面：非章节文件、已存在章节、骨架+填充同窗口
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_non_chapter_files_never_blocked(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    for path in ("progress.md", "data_ledger.md", "outline.md", "notes/todo.md"):
+        calls: list[str] = []
+        out = await _write(mw, "write_file", path, calls)
+        assert out.status != "error", path
+        assert calls == ["write_file"], path
+
+
+@pytest.mark.asyncio
+async def test_existing_chapter_write_allowed_even_with_dirty_other(
+    tmp_path: Path,
+) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT, CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    calls: list[str] = []
+    out = await _write(mw, "edit_file", f"chapters/{CLEAN_CH}", calls)
+    assert out.status != "error"
+    assert calls == ["edit_file"]
+
+
+@pytest.mark.asyncio
+async def test_skeleton_write_then_edit_fill_same_opening(tmp_path: Path) -> None:
+    """实现钉 1：write 骨架 + edit 填充 = 同一次开章，填充不被当作新开章拦。"""
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    # 无脏章时先开新章写骨架（放行）
+    calls: list[str] = []
+    await _write(mw, "write_file", f"chapters/{NEW_CH}", calls)
+    assert calls == ["write_file"]
+    # 骨架落盘（真实 write 会创建文件；这里模拟）
+    (ws / "chapters" / NEW_CH).write_text("# 骨架\n", encoding="utf-8")
+    # 之后另一章变脏
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    # edit 填充不算新开章 → 不拦
+    calls = []
+    out = await _write(mw, "edit_file", f"chapters/{NEW_CH}", calls)
+    assert out.status != "error"
+    assert calls == ["edit_file"]
+
+
+# ---------------------------------------------------------------------------
+# merge 终闸
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_merge_gate_blocks_then_releases(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    calls: list[str] = []
+    out1 = await mw.awrap_tool_call(
+        _request("merge_chapters", {}), _handler(calls)
+    )
+    assert out1.status == "error"
+    assert "[chapter_gate] 合并闸门" in out1.content
+    out2 = await mw.awrap_tool_call(
+        _request("merge_chapters", {}), _handler(calls)
+    )
+    assert out2.status == "error"
+    assert calls == []  # 两次都未真正执行
+    with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
+        out3 = await mw.awrap_tool_call(
+            _request("merge_chapters", {}), _handler(calls)
+        )
+    assert out3.status != "error"
+    assert calls == ["merge_chapters"]
+    assert "已达自修上限" in out3.content
+    assert any("已达自修上限" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_merge_gate_passes_clean_workspace(tmp_path: Path) -> None:
+    # structure 检查器有空壳章线（<500 非空白字符），干净章需足量定性文字
+    words = ["渠道", "品牌", "研发", "供应链", "组织", "服务", "营销", "产品"]
+    body = "\n".join(
+        f"本段从{a}{b}角度进行定性分析，不涉及任何量化数据。"
+        for a in words
+        for b in words
+        if a != b
+    )
+    ws = make_ws(tmp_path, {CLEAN_CH: body})
+    mw = ChapterGateMiddleware(ws)
+    calls: list[str] = []
+    out = await mw.awrap_tool_call(
+        _request("merge_chapters", {}), _handler(calls)
+    )
+    assert out.status != "error"
+    assert calls == ["merge_chapters"]
+
+
+# ---------------------------------------------------------------------------
+# 无关工具完全不触门禁
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_unrelated_tool_passthrough(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    calls: list[str] = []
+    out = await mw.awrap_tool_call(
+        _request("read_file", {"file_path": f"chapters/{NEW_CH}"}), _handler(calls)
+    )
+    assert out.status != "error"
+    assert calls == ["read_file"]
+
+
+def test_config_flag_defaults_off() -> None:
+    """G2：chapter_gate flag 默认关 = 零行为变化（不挂中间件）。"""
+    from octop_harness.config import HarnessAgentConfig
+
+    cfg = HarnessAgentConfig()
+    assert cfg.chapter_gate_enabled is False
+    assert cfg.chapter_gate_max_repairs == 2
+    assert cfg.chapter_gate_workspace_root is None
