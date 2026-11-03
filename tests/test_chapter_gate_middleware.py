@@ -452,14 +452,23 @@ async def test_state_persisted_and_restored(tmp_path: Path) -> None:
 
 
 async def test_merge_gate_requires_verified_reviewed(tmp_path: Path) -> None:
+    """审校 infra 失败 → 章保持未审校 → merge 硬失败不放行（Task 17 自动审校的失败面）。"""
     ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_LONG})
-    mw = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+
+    class _ReviewDown:
+        async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+            if "审校" in str(kwargs.get("system") or ""):
+                raise TimeoutError("review endpoint down")
+            return '{"assertions": []}'
+
+    mw = ChapterGateMiddleware(ws, model_access=_ReviewDown())
+    mw._verify_backoff = 0
     await _stats(mw, f"chapters/{CLEAN_CH}")  # verified=passed，reviewed=False
-    blocked = await _merge_call(mw)
+    blocked = await _merge_call(mw)  # 自动审校 infra 失败 → 未审校硬失败
     assert blocked.status == "error"
     assert "未审校" in blocked.content
     assert "硬失败" in blocked.content
-    mw.apply_review_edit(CLEAN_CH, CLEAN_LONG)  # 审校链置 reviewed
+    mw.apply_review_edit(CLEAN_CH, CLEAN_LONG)  # 审校链恢复后补置 reviewed
     out = await _merge_call(mw)
     assert out.status != "error"
 

@@ -84,8 +84,9 @@ def make_gate(
     ws: Path,
     model: MockModel | None,
     fetch=fetch_ok,
+    search=search_ok,
 ) -> ChapterGateMiddleware:
-    gate = ChapterGateMiddleware(ws, model_access=model, verify_fetch=fetch)
+    gate = ChapterGateMiddleware(ws, model_access=model, verify_search=search, verify_fetch=fetch)
     gate._verify_backoff = 0  # 测试不等退避
     return gate
 

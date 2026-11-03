@@ -36,6 +36,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
+from octop_harness.middleware.review_chain import apply_edits, run_review
 from octop_harness.middleware.verification import (
     extract_loadbearing_assertions,
     sample_numeric_claims,
@@ -164,6 +165,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._verify_aborted = False  # 连续 3 次 infra 失败 = 事故中止，本轮停止核验
         self._verify_backoff = 1.0  # 重试退避基数（测试可置 0）
         self._rng = random.Random()
+        self._auto_reviewed: list[tuple[str, int]] = []  # merge 前自动审校改动（章, 处数）
         self._restore_state()
 
     # ------------------------------------------------------------------
@@ -232,6 +234,123 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         st.findings = []
         self._persist_state()
 
+    def mark_reviewed(self, chapter: str) -> None:
+        """审校跑完无需改动：仅置 reviewed。"""
+        self._chapter_state(chapter).reviewed = True
+        self._persist_state()
+
+    # ------------------------------------------------------------------
+    # 审校链（R4 §3.2，merge 前自动触发）
+    # ------------------------------------------------------------------
+
+    _AUDIT_FILE = "review_audit.jsonl"
+    _QUEUE_FILE = "verification_queue.jsonl"
+
+    def _log_audit(self, entry: dict[str, Any]) -> None:
+        entry = {"ts": datetime.now(timezone.utc).isoformat(), **entry}
+        try:
+            with (self._workspace / self._AUDIT_FILE).open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            logger.warning("chapter_gate: review_audit.jsonl 写入失败", exc_info=True)
+
+    def _enqueue_doubts(self, chapter: str, doubts: list[str]) -> None:
+        """事实疑点回流核验队列（设计 §3.2：审校不独自判）。"""
+        if not doubts:
+            return
+        try:
+            with (self._workspace / self._QUEUE_FILE).open("a", encoding="utf-8") as fh:
+                for d in doubts:
+                    fh.write(
+                        json.dumps(
+                            {
+                                "ts": datetime.now(timezone.utc).isoformat(),
+                                "chapter": chapter,
+                                "doubt": d,
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
+        except OSError:
+            logger.warning("chapter_gate: verification_queue.jsonl 写入失败", exc_info=True)
+
+    def _read_doubts(self, chapter: str) -> list[str]:
+        """读本章疑点队列（不移除；核验成功后由 _clear_doubts 清除，infra 失败不丢疑点）。"""
+        path = self._workspace / self._QUEUE_FILE
+        if not path.is_file():
+            return []
+        try:
+            return [
+                str(e["doubt"])
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+                for e in [json.loads(line)]
+                if e.get("chapter") == chapter and e.get("doubt")
+            ]
+        except (OSError, ValueError):
+            return []
+
+    def _clear_doubts(self, chapter: str) -> None:
+        path = self._workspace / self._QUEUE_FILE
+        if not path.is_file():
+            return
+        try:
+            entries = [
+                json.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            rest = [e for e in entries if e.get("chapter") != chapter]
+            path.write_text(
+                "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in rest),
+                encoding="utf-8",
+            )
+        except (OSError, ValueError):
+            pass
+
+    async def _review_chapter(self, chapter: str) -> None:
+        """自动审校一章：改动 → apply_review_edit + audit；疑点 → 核验队列；
+        模型异常 = infra，留痕并保持未审校（merge 闸会硬失败）。"""
+        try:
+            text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
+            edits, doubts = await with_retry(
+                lambda: run_review(text, self._model_access),
+                backoff_s=self._verify_backoff,
+            )
+        except Exception as exc:
+            logger.warning("chapter_gate: 第 %s 章审校 infra 失败：%s", chapter, exc)
+            self._log_audit({"type": "infra_failure", "chapter": chapter, "error": str(exc)})
+            return
+        self._enqueue_doubts(chapter, doubts)
+        if not edits:
+            self.mark_reviewed(chapter)
+            return
+        new_text, applied, skipped = apply_edits(text, edits)
+        if not applied:
+            self.mark_reviewed(chapter)
+            return
+        self.apply_review_edit(chapter, new_text)
+        for rec in applied:
+            self._log_audit({"type": "edit", "chapter": chapter, **rec})
+        for rec in skipped:
+            self._log_audit({"type": "skipped", "chapter": chapter, **rec})
+        self._auto_reviewed.append((chapter, len(applied)))
+        logger.info("chapter_gate: 第 %s 章自动审校改 %d 处", chapter, len(applied))
+
+    async def _merge_autoreview(self, request: ToolCallRequest) -> None:
+        """merge 闸前自动审校未审校章（设计 §3.2：harness 自动跑，不等模型）。"""
+        if self._model_access is None:
+            return
+        tool_name, _, _ = _tool_meta(request)
+        if tool_name.rsplit("/", 1)[-1] != _MERGE_TOOL:
+            return
+        for ch in self._all_workspace_chapters():
+            st = self._chapter_state(ch)
+            if st.reviewed or st.exit_granted:
+                continue
+            await self._review_chapter(ch)
+
     @property
     def model_access(self) -> Any | None:
         """核验/审校独立模型通路（设计_R4 §3）；None = 核验/审校工序关闭。"""
@@ -287,6 +406,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 ),
                 backoff_s=self._verify_backoff,
             )
+            assertions = self._read_doubts(chapter) + assertions  # 审校回流疑点优先核验
             assertions += sample_numeric_claims(chapter_text, assertions, rng=self._rng)
             verdicts = [
                 await with_retry(
@@ -318,6 +438,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 self._log_verification({"type": "verify_aborted", "streak": self._infra_streak})
             return
         self._infra_streak = 0
+        self._clear_doubts(chapter)  # 本轮核验成功，已核疑点出队
         rel = f"chapters/{chapter}"
         for a, v in zip(assertions, verdicts, strict=True):
             self._log_verification(
@@ -504,6 +625,21 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             # R4 fail-closed（model_access 在位才启用，缺省关闭保持兼容）：
             # 未核验/未审校章硬失败不放行（工序缺位不是内容问题，不消耗 merge_rounds）
             if self._model_access is not None:
+                if self._auto_reviewed:
+                    # 自动审校已改动 → 阻断本次 merge，附言要求复测（设计 §3.2）
+                    notes = self._auto_reviewed
+                    self._auto_reviewed = []
+                    total = sum(n for _, n in notes)
+                    detail = "、".join(f"第 {ch.split('_')[0]} 章 {n} 处" for ch, n in notes)
+                    return ToolMessage(
+                        content=(
+                            f"[chapter_gate] 审校已改 {total} 处（{detail}），"
+                            "已落盘并留痕 review_audit.jsonl。请复测各章后再合并。"
+                        ),
+                        name=tool_name or "tool",
+                        tool_call_id=call_id,
+                        status="error",
+                    )
                 hard: list[str] = []
                 for ch in self._all_workspace_chapters():
                     st = self._chapter_state(ch)
@@ -688,6 +824,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         await self._merge_preverify(request)
+        await self._merge_autoreview(request)  # R4 §3.2：先核验（preverify）后审校
         blocked = self._pre_tool_call(request)
         if blocked is not None:
             self._persist_state()
@@ -705,8 +842,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     ) -> ToolMessage | Command[Any]:
         try:
             asyncio.run(self._merge_preverify(request))
+            asyncio.run(self._merge_autoreview(request))
         except Exception:
-            logger.warning("chapter_gate: sync 路径 merge 补核失败（fail-open）", exc_info=True)
+            logger.warning("chapter_gate: sync 路径 merge 补核/审校失败（fail-open）", exc_info=True)
         blocked = self._pre_tool_call(request)
         if blocked is not None:
             self._persist_state()
