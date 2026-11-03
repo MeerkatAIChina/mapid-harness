@@ -358,3 +358,32 @@ def test_config_flag_defaults_off() -> None:
     assert cfg.chapter_gate_enabled is False
     assert cfg.chapter_gate_max_repairs == 2
     assert cfg.chapter_gate_workspace_root is None
+
+
+# ---------------------------------------------------------------------------
+# R4 Task 14：核验/审校独立模型通路注入（设计_R4 §3 裁定 15）
+# ---------------------------------------------------------------------------
+
+
+class _StubModelAccess:
+    """ModelAccess 测试桩：只承诺 invoke_text/ainvoke_text 协议存在。"""
+
+    def invoke_text(self, prompt: str, **kwargs: object) -> str:
+        return ""
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        return ""
+
+
+def test_gate_accepts_model_access_injection(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={CLEAN_CH: CLEAN_TEXT})
+    stub = _StubModelAccess()
+    gate = ChapterGateMiddleware(ws, model_access=stub)
+    assert gate.model_access is stub
+
+
+def test_gate_default_model_access_none(tmp_path: Path) -> None:
+    # 缺省 None = 核验/审校工序关闭，现有行为全兼容
+    ws = make_ws(tmp_path, chapters={CLEAN_CH: CLEAN_TEXT})
+    gate = ChapterGateMiddleware(ws)
+    assert gate.model_access is None

@@ -112,13 +112,20 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         workspace_root: str | Path,
         *,
         max_repairs: int = 2,
+        model_access: Any | None = None,
     ) -> None:
         self._workspace = Path(workspace_root)
         self._max = max_repairs
+        self._model_access = model_access
         self._chapters: dict[str, _ChapterState] = {}
         self._merge_rounds = 0
         self._released: tuple[str, str] | None = None  # (脏章, 新开章) 放行附言
         self._merge_released: int | None = None  # merge 放行时遗留 findings 数
+
+    @property
+    def model_access(self) -> Any | None:
+        """核验/审校独立模型通路（设计_R4 §3）；None = 核验/审校工序关闭。"""
+        return self._model_access
 
     # ------------------------------------------------------------------
     # 评估

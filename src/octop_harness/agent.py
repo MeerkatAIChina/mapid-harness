@@ -1194,6 +1194,26 @@ class HarnessAgent:
             )
         self._mcp_tool_name_set = mcp_tool_names(self._mcp_tools)
 
+    def _verify_model_access(self) -> Any | None:
+        """核验/审校独立模型通路（设计_R4 §3 裁定 15）。
+
+        规格读 env ``OCTOP_VERIFY_MODEL``（provider/model ref），缺省回落主模型；
+        建立失败 fail-open：返回 None（核验/审校工序关闭），不阻断门禁挂载。
+        """
+        spec = _os.environ.get("OCTOP_VERIFY_MODEL", "").strip()
+        if not spec:
+            try:
+                spec = self._config.pick_default_model_ref() or ""
+            except Exception:
+                spec = ""
+        if not spec:
+            return None
+        try:
+            return self._model_factory.get_for(spec)
+        except Exception:
+            logger.warning("chapter_gate: 核验模型通路建立失败（%s），核验/审校工序关闭", spec, exc_info=True)
+            return None
+
     def _init_model_factory(self, injected: ChatModelFactory | None) -> ChatModelFactory:
         """Resolve the model factory: injected → config providers → env detection."""
         cfg = self._config
@@ -1491,6 +1511,7 @@ class HarnessAgent:
                 ChapterGateMiddleware(
                     workspace_root=gate_workspace,
                     max_repairs=cfg.chapter_gate_max_repairs,
+                    model_access=self._verify_model_access(),
                 )
             )
             logger.info(
