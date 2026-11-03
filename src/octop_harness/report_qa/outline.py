@@ -52,8 +52,8 @@ def parse_word_count_floors(outline_text: str) -> dict[str, int]:
 # 出口申请（progress.md「## 出口申请」标记段）
 # ---------------------------------------------------------------------------
 
-_EXIT_SECTION_RE = re.compile(r"^##\s*出口申请\s*$", re.MULTILINE)
-_EXIT_FIELD_RE = re.compile(r"^[-*]?\s*(章|章节|覆盖|大纲要点覆盖|实际/目标|不足原因|原因)[：:]\s*(.+)$")
+_EXIT_SECTION_RE = re.compile(r"^\s*##\s*出口申请\s*$", re.MULTILINE)
+_EXIT_FIELD_RE = re.compile(r"^\s*[-*]?\s*(章|章节|覆盖|大纲要点覆盖|实际/目标|不足原因|原因)[：:]\s*(.+)$")
 _EXIT_CHAPTER_RE = re.compile(r"(\d{1,2})")
 
 
