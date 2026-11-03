@@ -34,7 +34,7 @@ CHECKER_TO_DEFECTS: dict[str, list[str]] = {
     "ledger_schema": ["GD-15"],
     "ledger_freshness": ["GD-15"],
     "unsourced_precise": ["GD-06"],
-    "numeric_consistency": ["GD-07", "GD-09"],
+    "numeric_consistency": ["GD-07", "GD-09", "GD-26"],
     "figure_companion": ["GD-17"],
     "structure": ["GD-12", "GD-16"],
     "conclusion_source": ["GD-19", "GD-20"],
@@ -65,10 +65,12 @@ FORGED_LEDGER_TABLE = """
 | 欧普照明营业收入 | 69.70 | 亿元 | 2025年报 | 欧普照明2025年报 | 03 | 5 |
 | 欧普照明上市时间 | 2016 年 6 月 | — | — | 招股说明书 | 03 | 6 |
 | 欧普照明上市时间 | 2016 年 | — | — | 招股说明书 | 03 | 6 |
+| 三雄极光2024营收同比增速 | -0.35% | % | 2024年报 | 三雄极光2024年报 | 05 | 7 |
+| 三雄极光2024营收同比增速 | +0.35% | % | 2024年报 | 三雄极光2024年报 | 09 | 7 |
 """
 # GD-18 阴性行：numeric_consistency 对这些指标名的任何命中均为违规（误报回归）
 NEGATIVE_LEDGER_MARKERS = ("欧普照明营业收入", "欧普照明上市时间")
-FORGED_LEDGER_DEFECTS = {"GD-07", "GD-09"}
+FORGED_LEDGER_DEFECTS = {"GD-07", "GD-09", "GD-26"}
 
 
 def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict]:
@@ -100,6 +102,8 @@ def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict
             ledger_truth.append({"defect_id": "GD-07", "file": "data_ledger.md", "line": i})
         if "木林森2024营收同比增速" in line:
             ledger_truth.append({"defect_id": "GD-09", "file": "data_ledger.md", "line": i})
+        if "三雄极光2024营收同比增速" in line:
+            ledger_truth.append({"defect_id": "GD-26", "file": "data_ledger.md", "line": i})
 
     truth: list[dict] = list(ledger_truth)
     k = 0

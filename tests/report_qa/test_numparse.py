@@ -174,3 +174,39 @@ class TestSpansSupport:
     def test_modifier_ignored_support(self) -> None:
         """修饰语不影响同值判定：「39.19」=「约 39.19%」。"""
         assert spans_support(_span(39.19, 39.19, "39.19"), _span(39.19, 39.19, "约 39.19%"))
+
+# ---------------------------------------------------------------------------
+# GD-26 负号盲区（设计文档_R4 §8，调研 R-1）
+# ---------------------------------------------------------------------------
+
+
+class TestNegativeSign:
+    def test_negative_point_value(self) -> None:
+        from octop_harness.report_qa.numparse import parse_span
+
+        s = parse_span("-0.35%")
+        assert s is not None and s.lo == s.hi == -0.35
+
+    def test_positive_sign_point_value(self) -> None:
+        from octop_harness.report_qa.numparse import parse_span
+
+        s = parse_span("+0.35%")
+        assert s is not None and s.lo == 0.35
+
+    def test_negative_percent_not_equal_positive(self) -> None:
+        """GD-26：「-0.35%」与「+0.35%」异号 → 判冲突而非兼容。"""
+        from octop_harness.report_qa.numparse import parse_span, values_compatible
+
+        neg = parse_span("-0.35%")
+        pos = parse_span("+0.35%")
+        assert neg is not None and pos is not None
+        assert neg.lo < 0 < pos.lo
+        # values_compatible 收原始字符串（内部自解析），异号必须判冲突
+        assert not values_compatible("-0.35%", "+0.35%")
+
+    def test_interval_syntax_unaffected(self) -> None:
+        """区间连接符不被负号改动误伤：「8%~12%」仍是 (8, 12)。"""
+        from octop_harness.report_qa.numparse import parse_span
+
+        s = parse_span("8%~12%")
+        assert s is not None and (s.lo, s.hi) == (8.0, 12.0)

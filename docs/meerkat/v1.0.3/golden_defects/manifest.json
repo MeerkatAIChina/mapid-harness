@@ -243,6 +243,16 @@
       "hint": "intra_chapter_redundancy 应命中",
       "snippet": "公牛集团 2024 年营收 168.6 亿元，毛利率 43.25%，新能源与全屋智能业务增长迅速，渠道优势显著。\n\n从财务表现看，公牛集团营收 168.6 亿元、毛利率 43.25% 的水平，说明其电工龙头地位依然稳固。",
       "file": "text_injectable/GD-27_同章反复.md"
+    },
+    {
+      "id": "GD-26",
+      "title": "负号盲区：增速 -0.35% 与 +0.35% 误判兼容",
+      "class": "数值漂移",
+      "detector": "code",
+      "evidence": "调研新发现 R-1（numparse._SPAN_RE 不含负号）",
+      "hint": "伪造台账三雄极光增速两行异号同值，numeric_consistency 应判冲突",
+      "snippet": "__META__",
+      "file": "text_injectable/GD-26_负号盲区.md"
     }
   ],
   "process_checklist": [

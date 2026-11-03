@@ -22,7 +22,7 @@ _YEAR_RE = re.compile(r"^(?:19|20)\d{2}$")
 # 「（见第 X 章）」出处锚点：锚点内的章号不是数值
 _ANCHOR_RE = re.compile(r"[（(]\s*见第\s*\d+\s*章\s*[)）]")
 
-_SPAN_RE = re.compile(rf"({_NUM})\s*[%‰]?\s*{_SEP}\s*({_NUM})\s*[%‰]?|({_NUM})")
+_SPAN_RE = re.compile(rf"([+-]?{_NUM})\s*[%‰]?\s*{_SEP}\s*([+-]?{_NUM})\s*[%‰]?|([+-]?{_NUM})")
 
 
 class NumSpan(NamedTuple):
