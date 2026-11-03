@@ -43,7 +43,12 @@ CHECKER_TO_DEFECTS: dict[str, list[str]] = {
     "citation_ledger_ref": ["GD-25"],
     "placeholder_scan": ["GD-21"],
     "intra_chapter_redundancy": ["GD-27"],
+    # 核验层（mock 检索层回归，GD-22）：证伪 finding 归属虚构来源类
+    "verification": ["GD-22"],
 }
+
+# 核验层缺陷：注入后由核验通路（而非检查器）检出
+VERIFY_DEFECTS = {"GD-22"}
 
 DUP_PARA = "本段为逐字重复测试段落：双碳政策推动照明行业能效升级，节能改造工程加速落地。（注入用重复段）"
 
@@ -73,8 +78,8 @@ NEGATIVE_LEDGER_MARKERS = ("欧普照明营业收入", "欧普照明上市时间
 FORGED_LEDGER_DEFECTS = {"GD-07", "GD-09", "GD-26"}
 
 
-def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict]:
-    """复制基线 workspace 并注入文本缺陷，返回 ground truth。"""
+def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> tuple[list[dict], list[str]]:
+    """复制基线 workspace 并注入文本缺陷，返回 (ground truth, 核验层缺陷的注入章名单)。"""
     ws = out / "regression_ws"
     if ws.exists():
         shutil.rmtree(ws)
@@ -106,6 +111,7 @@ def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict
             ledger_truth.append({"defect_id": "GD-26", "file": "data_ledger.md", "line": i})
 
     truth: list[dict] = list(ledger_truth)
+    verify_targets: list[str] = []  # 核验层缺陷的注入章（GD-22）
     k = 0
     for d in manifest["text_injectable"]:
         snippet = d["snippet"]
@@ -120,6 +126,8 @@ def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict
                 raise SystemExit(f"manifest {d['id']} target={d['target']!r} 无匹配章节")
         else:
             targets = [chapters[k % len(chapters)]]
+        if d["id"] in VERIFY_DEFECTS:
+            verify_targets.extend(t.name for t in targets)
         for target in targets:
             f = ws / "chapters" / target.name
             text = f.read_text(encoding="utf-8")
@@ -134,7 +142,47 @@ def build_regression_ws(workspace: Path, manifest: dict, out: Path) -> list[dict
                 }
             )
         k += 1
-    return truth
+    return truth, verify_targets
+
+
+class _RegressionJudge:
+    """GD-22 回归桩：抽取走关键词通路（返回空清单），判定恒 refuted（证据与断言矛盾）。
+
+    回归测的是「断言 → 判定 → 章置 dirty」的接线，不是模型的判断力，
+    故判定脚本化；检索/抓取同为桩，不碰真网络。
+    """
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        if "抽取" in str(kwargs.get("system") or ""):
+            return '{"assertions": []}'
+        return json.dumps({"verdict": "refuted", "reason": "官方证据与断言矛盾"}, ensure_ascii=False)
+
+
+async def _reg_search(query: str) -> list[dict]:
+    return [{"url": "https://example.com/official", "title": "t", "snippet": "s"}]
+
+
+async def _reg_fetch(url: str) -> str:
+    return "官方披露正文（mock）：真实信息与断言矛盾。"
+
+
+async def _verification_findings(ws: Path, targets: list[str]) -> list[dict]:
+    """核验层回归：对 GD-22 注入章跑核验通路，收集证伪 findings。"""
+    from octop_harness.middleware.chapter_gate import ChapterGateMiddleware
+
+    gate = ChapterGateMiddleware(
+        ws,
+        model_access=_RegressionJudge(),
+        verify_search=_reg_search,
+        verify_fetch=_reg_fetch,
+    )
+    gate._verify_backoff = 0
+    for ch in targets:
+        await gate._verify_chapter(ch)
+    findings: list[dict] = []
+    for ch in targets:
+        findings.extend(gate._chapters[ch].verify_findings)
+    return findings
 
 
 def _native_hit_defects(f: dict, mapped: list[str]) -> list[str]:
@@ -219,13 +267,20 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
 
-    truth = build_regression_ws(Path(args.workspace), manifest, out)
+    truth, verify_targets = build_regression_ws(Path(args.workspace), manifest, out)
     (out / "checker_ground_truth.json").write_text(
         json.dumps(truth, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
     report = build_report(out / "regression_ws")
     findings = report["findings"]
+    if verify_targets:
+        # 核验层缺陷（GD-22）：mock 检索层跑核验通路，证伪 findings 并入评分
+        import asyncio
+
+        verify_findings = asyncio.run(_verification_findings(out / "regression_ws", verify_targets))
+        findings = findings + verify_findings
+        report["findings"] = findings
     (out / "checker_findings.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )

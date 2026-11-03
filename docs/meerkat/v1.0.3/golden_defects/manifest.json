@@ -253,6 +253,16 @@
       "hint": "伪造台账三雄极光增速两行异号同值，numeric_consistency 应判冲突",
       "snippet": "__META__",
       "file": "text_injectable/GD-26_负号盲区.md"
+    },
+    {
+      "id": "GD-22",
+      "title": "虚构来源/事实：格式完美的编造承重断言",
+      "class": "数据真实性",
+      "detector": "code",
+      "evidence": "R4 新增（设计文档_R4 §9）；核验层缺陷，回归以 mock 检索层接入",
+      "hint": "verification 通路应判证伪（章置 dirty）",
+      "snippet": "据《欧普照明2024年社会责任特别报告》披露，欧普照明于2019年在纳斯达克挂牌上市，股票代码OPPL。",
+      "file": "text_injectable/GD-22_虚构来源.md"
     }
   ],
   "process_checklist": [
