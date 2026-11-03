@@ -387,3 +387,99 @@ def test_gate_default_model_access_none(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, chapters={CLEAN_CH: CLEAN_TEXT})
     gate = ChapterGateMiddleware(ws)
     assert gate.model_access is None
+
+
+# ---------------------------------------------------------------------------
+# R4 Task 16：状态机扩展（verified/reviewed/exit_granted + 落盘恢复 + merge 闸）
+# ---------------------------------------------------------------------------
+
+
+class _MockVerifyModel:
+    """核验模型桩：抽取返回空清单（章无承重断言 → verified=passed）。"""
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        return '{"assertions": []}'
+
+
+# 过 merge 闸 structure 检查的非空壳长文（无精确数值、无承重关键词 → 各检查器全静默）
+CLEAN_LONG = (
+    "本章从行业格局、竞争壁垒、渠道结构、品牌心智与供应链效率等维度展开定性分析，"
+    "着重讨论头部企业在存量市场中的相对优势及其可持续性，不引用任何精确数值，"
+    "也不涉及重大资本运作等承重事实，仅作框架性研判与趋势推演。"
+) * 10
+
+
+async def _merge_call(mw: ChapterGateMiddleware) -> ToolMessage:
+    return await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
+
+
+async def test_edit_clears_verified_and_reviewed(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    st = mw._chapters[CLEAN_CH]
+    assert st.verified == "passed"
+    st.reviewed = True  # 模拟审校链置位
+    out = await _write(mw, "edit_file", f"chapters/{CLEAN_CH}")
+    assert out.status != "error"  # 修改已存在章永远放行
+    assert st.verified == "unchecked"  # 编辑即清（设计裁定 14）
+    assert st.reviewed is False
+
+
+async def test_review_chain_own_edit_exempt(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    mw.apply_review_edit(CLEAN_CH, "审校改写后的文字。\n")
+    st = mw._chapters[CLEAN_CH]
+    assert st.reviewed is True  # 审校自身改动豁免「编辑即清」
+    assert st.verified == "passed"  # 事实疑点走核验队列，审校不动 verified
+    assert st.status == "unevaluated"  # 但仍待复测
+    assert (ws / "chapters" / CLEAN_CH).read_text(encoding="utf-8") == "审校改写后的文字。\n"
+
+
+async def test_state_persisted_and_restored(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    mw.apply_review_edit(CLEAN_CH, CLEAN_TEXT)
+    # 新实例（模拟重启）恢复状态
+    mw2 = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+    st2 = mw2._chapters[CLEAN_CH]
+    assert st2.verified == "passed"
+    assert st2.reviewed is True
+    assert st2.status == "unevaluated"
+
+
+async def test_merge_gate_requires_verified_reviewed(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_LONG})
+    mw = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
+    await _stats(mw, f"chapters/{CLEAN_CH}")  # verified=passed，reviewed=False
+    blocked = await _merge_call(mw)
+    assert blocked.status == "error"
+    assert "未审校" in blocked.content
+    assert "硬失败" in blocked.content
+    mw.apply_review_edit(CLEAN_CH, CLEAN_LONG)  # 审校链置 reviewed
+    out = await _merge_call(mw)
+    assert out.status != "error"
+
+
+async def test_merge_gate_hard_blocks_pending_verification(tmp_path: Path) -> None:
+    """核验事故（pending）→ merge 硬失败不放行（fail-closed，不消耗 merge_rounds）。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+
+    class _Down:
+        async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+            raise TimeoutError("endpoint down")
+
+    mw = ChapterGateMiddleware(ws, model_access=_Down())
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert mw._chapters[CLEAN_CH].verified == "pending"
+    st = mw._chapters[CLEAN_CH]
+    st.reviewed = True
+    for _ in range(3):  # 硬失败无放行上限：反复 merge 始终 blocked
+        out = await _merge_call(mw)
+        assert out.status == "error"
+    assert "未完成核验" in out.content
+    assert mw._merge_rounds == 0  # 硬失败不消耗 merge 额度

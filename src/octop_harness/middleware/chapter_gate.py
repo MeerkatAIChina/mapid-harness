@@ -108,6 +108,8 @@ class _ChapterState:
     verified: str = "unchecked"
     verify_findings: list[dict[str, Any]] = field(default_factory=list)  # 证伪断言
     verify_notes: list[str] = field(default_factory=list)  # 查无实证 → 降级要求
+    reviewed: bool = False  # R4 §3.2 审校维度（审校链置位）
+    exit_granted: bool = False  # R4 §7.2 诚实出口举证通过（Task 20 置位）
 
 
 def _tool_meta(request: ToolCallRequest) -> tuple[str, str, dict[str, Any]]:
@@ -162,6 +164,73 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._verify_aborted = False  # 连续 3 次 infra 失败 = 事故中止，本轮停止核验
         self._verify_backoff = 1.0  # 重试退避基数（测试可置 0）
         self._rng = random.Random()
+        self._restore_state()
+
+    # ------------------------------------------------------------------
+    # 状态落盘 / 恢复（设计_R4 §3.3：重启不丢，调研坑①）
+    # ------------------------------------------------------------------
+
+    _STATE_FILE = "gate_state.json"
+
+    def _persist_state(self) -> None:
+        """_chapters 全量状态落盘（机器可读 JSON；gate_release_notes.md 是人读放行记录）。"""
+        data = {
+            "chapters": {
+                name: {
+                    "status": st.status,
+                    "verified": st.verified,
+                    "reviewed": st.reviewed,
+                    "exit_granted": st.exit_granted,
+                    "repair_rounds": st.repair_rounds,
+                    "findings": st.findings,
+                    "verify_findings": st.verify_findings,
+                    "verify_notes": st.verify_notes,
+                }
+                for name, st in self._chapters.items()
+            },
+            "merge_rounds": self._merge_rounds,
+            "infra_streak": self._infra_streak,
+            "verify_aborted": self._verify_aborted,
+        }
+        try:
+            (self._workspace / self._STATE_FILE).write_text(
+                json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8"
+            )
+        except OSError:
+            logger.warning("chapter_gate: 状态落盘失败", exc_info=True)
+
+    def _restore_state(self) -> None:
+        path = self._workspace / self._STATE_FILE
+        if not path.is_file():
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for name, raw in data.get("chapters", {}).items():
+                st = _ChapterState()
+                st.status = raw.get("status", "unevaluated")
+                st.verified = raw.get("verified", "unchecked")
+                st.reviewed = bool(raw.get("reviewed", False))
+                st.exit_granted = bool(raw.get("exit_granted", False))
+                st.repair_rounds = int(raw.get("repair_rounds", 0))
+                st.findings = list(raw.get("findings", []))
+                st.verify_findings = list(raw.get("verify_findings", []))
+                st.verify_notes = list(raw.get("verify_notes", []))
+                self._chapters[name] = st
+            self._merge_rounds = int(data.get("merge_rounds", 0))
+            self._infra_streak = int(data.get("infra_streak", 0))
+            self._verify_aborted = bool(data.get("verify_aborted", False))
+        except (OSError, ValueError, TypeError):
+            logger.warning("chapter_gate: 状态恢复失败，按全新状态启动", exc_info=True)
+
+    def apply_review_edit(self, chapter: str, new_text: str) -> None:
+        """审校工序自身改动（设计裁定 14 豁免「编辑即清」）：落盘 + 置 reviewed，
+        verified 保留（事实疑点走核验队列，不由审校判）；章置 unevaluated 待复测。"""
+        (self._workspace / "chapters" / chapter).write_text(new_text, encoding="utf-8")
+        st = self._chapter_state(chapter)
+        st.reviewed = True
+        st.status = "unevaluated"
+        st.findings = []
+        self._persist_state()
 
     @property
     def model_access(self) -> Any | None:
@@ -432,7 +501,35 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             )
 
         if base == _MERGE_TOOL:
+            # R4 fail-closed（model_access 在位才启用，缺省关闭保持兼容）：
+            # 未核验/未审校章硬失败不放行（工序缺位不是内容问题，不消耗 merge_rounds）
+            if self._model_access is not None:
+                hard: list[str] = []
+                for ch in self._all_workspace_chapters():
+                    st = self._chapter_state(ch)
+                    if st.exit_granted:
+                        continue  # 诚实出口举证通过 = 合规但记录
+                    num = ch.split("_")[0]
+                    if st.verified in ("pending", "unchecked"):
+                        hard.append(
+                            f"第 {num} 章未完成核验"
+                            + ("（核验服务不可用，事故中止，本轮建议作废重跑）" if self._verify_aborted else "")
+                        )
+                    if not st.reviewed:
+                        hard.append(f"第 {num} 章未审校")
+                if hard:
+                    logger.info("chapter_gate: merge 闸硬失败（工序缺位）：%s", hard)
+                    return ToolMessage(
+                        content="[chapter_gate] 合并闸门（硬失败，不放行）：\n"
+                        + "\n".join(f"- {h}" for h in hard),
+                        name=tool_name or "tool",
+                        tool_call_id=call_id,
+                        status="error",
+                    )
             findings = self._evaluate_all()
+            # 证伪断言（章级第五道产物）并入 merge 全量 findings
+            for ch in self._all_workspace_chapters():
+                findings.extend(self._chapter_state(ch).verify_findings)
             if not findings:
                 return None
             if self._merge_rounds >= self._max:
@@ -528,9 +625,10 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 st = self._chapter_state(chapter)
                 st.status = "unevaluated"  # 修改脏章/任何章 → 待复测
                 st.findings = []
-                st.verified = "unchecked"  # 编辑即清核验结论（R4 §3.1，Task 16 正式并入状态机）
+                st.verified = "unchecked"  # 编辑即清 verified/reviewed（设计裁定 14）
                 st.verify_findings = []
                 st.verify_notes = []
+                st.reviewed = False
             released = self._released
             if released is not None and isinstance(result, ToolMessage):
                 first, _ = released
@@ -565,6 +663,21 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
 
         return result
 
+    async def _merge_preverify(self, request: ToolCallRequest) -> None:
+        """merge 闸 fail-closed 的补核（设计 §3.1）：未核章在 merge 前补核一次。"""
+        if self._model_access is None or self._verify_aborted:
+            return
+        tool_name, _, _ = _tool_meta(request)
+        if tool_name.rsplit("/", 1)[-1] != _MERGE_TOOL:
+            return
+        for ch in self._all_workspace_chapters():
+            st = self._chapter_state(ch)
+            if st.exit_granted or st.verified in ("passed", "failed"):
+                continue
+            if self._evaluate_chapter(ch):  # 内容脏章先修格式
+                continue
+            await self._verify_chapter(ch)
+
     # ------------------------------------------------------------------
     # wrap_tool_call
     # ------------------------------------------------------------------
@@ -574,24 +687,35 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
+        await self._merge_preverify(request)
         blocked = self._pre_tool_call(request)
         if blocked is not None:
+            self._persist_state()
             return blocked
         result = await handler(request)
         await self._verify_touchpoint(request, result)  # R4 第五道：承重断言核验
-        return self._post_tool_call(request, result)
+        out = self._post_tool_call(request, result)
+        self._persist_state()
+        return out
 
     def wrap_tool_call(
         self,
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
     ) -> ToolMessage | Command[Any]:
+        try:
+            asyncio.run(self._merge_preverify(request))
+        except Exception:
+            logger.warning("chapter_gate: sync 路径 merge 补核失败（fail-open）", exc_info=True)
         blocked = self._pre_tool_call(request)
         if blocked is not None:
+            self._persist_state()
             return blocked
         result = handler(request)
         self._verify_touchpoint_sync(request, result)
-        return self._post_tool_call(request, result)
+        out = self._post_tool_call(request, result)
+        self._persist_state()
+        return out
 
 
 __all__ = [
