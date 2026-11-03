@@ -95,3 +95,10 @@ def test_name_distinct_from_octop_outer_retry():
     chain = [outer, inner]
     assert len({m.name for m in chain}) == len(chain)
     assert inner.name == "PatientModelRetryMiddleware"
+
+
+def test_default_retry_on_accepts_watchdog_timeout():
+    """看门狗超时异常必须被 default_retry_on 判可重试（执行计划 Task 5 拔测）。"""
+    from langchain.agents.middleware._retry import default_retry_on
+
+    assert default_retry_on(TimeoutError("model call watchdog 300s")) is True
