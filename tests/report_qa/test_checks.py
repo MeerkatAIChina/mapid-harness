@@ -772,3 +772,26 @@ def test_intra_chapter_ignores_cross_chapter(tmp_path: Path) -> None:
     # 跨章复用合法（用户裁定）：同段落出现在两章 → 本检查器不报
     ws = make_ws(tmp_path, chapters={"01_甲.md": PARA_A + "\n", "02_乙.md": PARA_A + "\n"})
     assert checks.check_intra_chapter_redundancy(ws) == []
+
+# ---------------------------------------------------------------------------
+# 13. 空壳章编号排除（设计文档_R4 §7.3，Task 19）
+# ---------------------------------------------------------------------------
+
+
+def test_shell_chapter_excluded_from_numbering(tmp_path: Path) -> None:
+    # 05 正常 + 06 空壳（41 字符）+ 07 正常 → 报空壳章，且空壳不算数 → 报编号缺失 6
+    ws = make_ws(tmp_path, chapters={
+        "05_甲.md": BODY_600,
+        "06_乙.md": "第六章待写。",
+        "07_丙.md": BODY_600,
+    })
+    findings = checks.check_structure(ws)
+    messages = [f["message"] for f in findings]
+    assert any("空壳章" in m for m in messages)
+    assert any("缺失：6" in m or "缺失: 6" in m or "6" in m and "编号" in m for m in messages)
+
+
+def test_normal_chapter_counts_in_numbering(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"05_甲.md": BODY_600, "06_乙.md": BODY_600, "07_丙.md": BODY_600})
+    findings = checks.check_structure(ws)
+    assert not any("编号不连续" in f["message"] for f in findings)

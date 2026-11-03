@@ -817,7 +817,11 @@ def check_structure(workspace: Path) -> list[Finding]:
         )
         return findings + _check_dates(workspace)
 
-    numbered = [num for num, _ in chapters if num > 0]
+    numbered = [
+        num
+        for num, path in chapters
+        if num > 0 and _non_ws(_read(path)) >= SHELL_CHAPTER_MIN_CHARS
+    ]
     if numbered:
         missing = sorted(set(range(min(numbered), max(numbered) + 1)) - set(numbered))
         if missing:
