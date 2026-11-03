@@ -62,6 +62,14 @@ docker = ["docker>=7.0"]
 opensandbox = ["opensandbox>=0.1.16,<1.2"]
 observability = ["langfuse>=4.9.0"]
 acp = ["agent-client-protocol>=0.9.0", "psutil>=5.9"]
+# 交付期渲染管线（R4：md → html/docx/pdf + 图表/公式）
+pipeline = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "python-docx>=1.1",
+    "reportlab>=4.0",
+    "pillow>=10.0",
+]
 # Aggregate extras (category installs; fine-grained extras remain preferred)
 desktop = ["mss>=9.0", "pynput>=1.7", "pillow>=10.0"]
 web-search-all = [
@@ -91,6 +99,11 @@ all = [  # library feature extras only; exclude cli — use [cli,all] when neede
     "langfuse>=4.9.0",
     "agent-client-protocol>=0.9.0",
     "psutil>=5.9",
+    # pipeline extras — required by tests/pipeline/
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "python-docx>=1.1",
+    "reportlab>=4.0",
 ]
 
 [project.scripts]
@@ -122,6 +135,12 @@ dev = [
     "mss>=9.0",
     "octop-browser>=0.9.9",
     "langfuse>=4.9.0",
+    # pipeline extras — required by tests/pipeline/
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "python-docx>=1.1",
+    "reportlab>=4.0",
+    "pillow>=10.0",
 ]
 
 # ---------------------------------------------------------------------------
