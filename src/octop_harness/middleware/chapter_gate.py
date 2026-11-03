@@ -20,10 +20,14 @@ report_qa 既有检查器，状态机全部收在本中间件内，经 config fl
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import random
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +36,12 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
+from octop_harness.middleware.verification import (
+    extract_loadbearing_assertions,
+    sample_numeric_claims,
+    verify_assertion,
+    with_retry,
+)
 from octop_harness.report_qa.checks import CHECKERS
 
 logger = logging.getLogger(__name__)
@@ -65,9 +75,28 @@ _HINTS = {
     "ledger_freshness": "先登记 data_ledger.md",
     "numeric_consistency": "统一台账数值口径",
     "structure": "修复结构问题",
+    "verification": "证伪断言必须删改",
 }
 
 _GD_TAG_RE = re.compile(r"（GD-[^）]*）")
+
+
+async def _default_search(query: str) -> list[dict[str, Any]]:
+    """searchfree 检索（零配置）；上游不可用抛异常 = infra 失败。"""
+    from octop_harness.builtin.tools.web_search.searchfree import searchfree_search
+
+    raw = await searchfree_search.ainvoke({"query": query, "max_results": 5})
+    if raw.startswith("Error:"):
+        raise RuntimeError(raw)
+    data = json.loads(raw)
+    return data if isinstance(data, list) else list(data.get("results", []))
+
+
+async def _default_fetch(url: str) -> str:
+    """正文抓取复用既有 web_fetch（SSRF 防护现成）；同步 httpx 以 to_thread 包装。"""
+    from octop_harness.builtin.tools.web_fetch import web_fetch
+
+    return await asyncio.to_thread(web_fetch.invoke, {"url": url})
 
 
 @dataclass
@@ -75,6 +104,10 @@ class _ChapterState:
     status: str = "unevaluated"  # unevaluated | clean | dirty
     findings: list[dict[str, Any]] = field(default_factory=list)
     repair_rounds: int = 0  # 因该章脏而被阻断开新章的次数
+    # R4 §3.1 核验维度：unchecked | passed | failed | pending（infra fail-open）
+    verified: str = "unchecked"
+    verify_findings: list[dict[str, Any]] = field(default_factory=list)  # 证伪断言
+    verify_notes: list[str] = field(default_factory=list)  # 查无实证 → 降级要求
 
 
 def _tool_meta(request: ToolCallRequest) -> tuple[str, str, dict[str, Any]]:
@@ -113,14 +146,22 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         *,
         max_repairs: int = 2,
         model_access: Any | None = None,
+        verify_search: Callable[[str], Awaitable[list[dict[str, Any]]]] | None = None,
+        verify_fetch: Callable[[str], Awaitable[str]] | None = None,
     ) -> None:
         self._workspace = Path(workspace_root)
         self._max = max_repairs
         self._model_access = model_access
+        self._search = verify_search or _default_search
+        self._fetch = verify_fetch or _default_fetch
         self._chapters: dict[str, _ChapterState] = {}
         self._merge_rounds = 0
         self._released: tuple[str, str] | None = None  # (脏章, 新开章) 放行附言
         self._merge_released: int | None = None  # merge 放行时遗留 findings 数
+        self._infra_streak = 0  # 连续 infra 失败次数（核验事故计数器，与 N=2 分开）
+        self._verify_aborted = False  # 连续 3 次 infra 失败 = 事故中止，本轮停止核验
+        self._verify_backoff = 1.0  # 重试退避基数（测试可置 0）
+        self._rng = random.Random()
 
     @property
     def model_access(self) -> Any | None:
@@ -145,6 +186,127 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         for name in MERGE_CHECKERS:
             findings.extend(CHECKERS[name](self._workspace))
         return findings
+
+    # ------------------------------------------------------------------
+    # 核验（R4 §3.1 章级第五道）
+    # ------------------------------------------------------------------
+
+    def _ledger_text(self) -> str:
+        p = self._workspace / "data_ledger.md"
+        return p.read_text(encoding="utf-8") if p.is_file() else ""
+
+    def _log_verification(self, entry: dict[str, Any]) -> None:
+        entry = {"ts": datetime.now(timezone.utc).isoformat(), **entry}
+        try:
+            with (self._workspace / "verification_log.jsonl").open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            logger.warning("chapter_gate: verification_log.jsonl 写入失败", exc_info=True)
+
+    async def _verify_chapter(self, chapter: str) -> None:
+        """核验一章：证伪 → verify_findings（章 dirty）；查无实证 → 降级附言；
+        infra 失败 → verified=pending fail-open 留痕，连续 3 次事故中止。"""
+        st = self._chapter_state(chapter)
+        st.verified = "unchecked"
+        st.verify_findings = []
+        st.verify_notes = []
+        try:
+            chapter_text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
+            assertions = await with_retry(
+                lambda: extract_loadbearing_assertions(
+                    chapter_text, self._ledger_text(), self._model_access
+                ),
+                backoff_s=self._verify_backoff,
+            )
+            assertions += sample_numeric_claims(chapter_text, assertions, rng=self._rng)
+            verdicts = [
+                await with_retry(
+                    lambda a=a: verify_assertion(a, self._model_access, self._search, self._fetch),
+                    backoff_s=self._verify_backoff,
+                )
+                for a in assertions
+            ]
+        except Exception as exc:  # infra 失败（重试耗尽）→ 章级 fail-open，不消耗 N=2
+            st.verified = "pending"
+            self._infra_streak += 1
+            logger.warning(
+                "chapter_gate: 第 %s 章核验 infra 失败（连续 %d 次）：%s",
+                chapter,
+                self._infra_streak,
+                exc,
+            )
+            self._log_verification(
+                {
+                    "type": "infra_failure",
+                    "chapter": chapter,
+                    "error": str(exc),
+                    "streak": self._infra_streak,
+                }
+            )
+            if self._infra_streak >= 3 and not self._verify_aborted:
+                self._verify_aborted = True
+                logger.error("chapter_gate: 连续 3 次核验 infra 失败，本轮停止核验（事故中止）")
+                self._log_verification({"type": "verify_aborted", "streak": self._infra_streak})
+            return
+        self._infra_streak = 0
+        rel = f"chapters/{chapter}"
+        for a, v in zip(assertions, verdicts, strict=True):
+            self._log_verification(
+                {
+                    "type": "verdict",
+                    "chapter": chapter,
+                    "assertion": a,
+                    "verdict": v.result,
+                    "evidence_url": v.evidence_url,
+                    "reason": v.reason,
+                }
+            )
+            if v.result == "refuted":
+                st.verify_findings.append(
+                    {
+                        "file": rel,
+                        "line": 0,
+                        "check": "verification",
+                        "severity": "high",
+                        "message": f"承重断言证伪：{a}（证据 {v.evidence_url or '无'}：{v.reason}）",
+                    }
+                )
+            elif v.result == "unverifiable":
+                st.verify_notes.append(a)
+        st.verified = "failed" if st.verify_findings else "passed"
+
+    async def _verify_touchpoint(
+        self,
+        request: ToolCallRequest,
+        result: ToolMessage | Command[Any],
+    ) -> None:
+        """report_stats 触点的核验通道：只核验内容检查通过的章（先修格式再核验）。"""
+        if self._model_access is None or self._verify_aborted:
+            return
+        tool_name, _, args = _tool_meta(request)
+        if tool_name.rsplit("/", 1)[-1] != _STATS_TOOL or _is_error(result):
+            return
+        chapter = _chapter_name_from_path(args.get("path"))
+        chapters = [chapter] if chapter is not None else self._all_workspace_chapters()
+        for ch in chapters:
+            if self._verify_aborted:  # 事故中止：目录统计的后续章也跳过
+                break
+            if self._evaluate_chapter(ch):  # 内容 findings 非空 → 先修格式，核验等下轮复测
+                continue
+            await self._verify_chapter(ch)
+
+    def _verify_touchpoint_sync(
+        self,
+        request: ToolCallRequest,
+        result: ToolMessage | Command[Any],
+    ) -> None:
+        """sync 路径的核验入口：无事件循环时 asyncio.run 驱动；失败一律 fail-open。"""
+        if self._model_access is None or self._verify_aborted:
+            return
+        try:
+            asyncio.run(self._verify_touchpoint(request, result))
+        except Exception:
+            logger.warning("chapter_gate: sync 路径核验执行失败，本次跳过（fail-open）", exc_info=True)
 
     # ------------------------------------------------------------------
     # 附言
@@ -317,15 +479,39 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     findings = self._evaluate_chapter(ch)
                     st = self._chapter_state(ch)
                     st.findings = findings
-                    st.status = "dirty" if findings else "clean"
-                    if not findings:
+                    combined = findings + st.verify_findings  # 内容 + 证伪断言（R4 第五道）
+                    st.status = "dirty" if combined else "clean"
+                    if not combined:
                         st.repair_rounds = 0  # 复测通过，额度复位
-                    results.append((ch, findings))
+                    results.append((ch, combined))
                 ps = (
                     self._chapter_postscript(results[0][1])
                     if chapter is not None
                     else self._multi_postscript(results)
                 )
+                extra: list[str] = []
+                for ch in chapters:
+                    st = self._chapters.get(ch)
+                    if st is None:
+                        continue
+                    num = ch.split("_")[0]
+                    if st.verify_notes:
+                        extra.append(
+                            f"第 {num} 章以下断言查无实证，请降级表述强度并标注 [待核实]："
+                        )
+                        extra.extend(f"- {n}" for n in st.verify_notes[:5])
+                    if st.verified == "pending":
+                        extra.append(
+                            f"第 {num} 章本次核验因核验服务不可用未执行"
+                            "（环境事故已留痕，不消耗修复额度）。"
+                        )
+                if self._verify_aborted:
+                    extra.append(
+                        "核验服务连续失败已达事故阈值，本轮后续章节跳过核验"
+                        "（环境事故，建议本轮作废重跑）。"
+                    )
+                if extra:
+                    ps = ps + "\n" + "\n".join(extra)
                 result = ToolMessage(
                     content=f"{result.content}\n\n{ps}",
                     name=result.name,
@@ -342,6 +528,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 st = self._chapter_state(chapter)
                 st.status = "unevaluated"  # 修改脏章/任何章 → 待复测
                 st.findings = []
+                st.verified = "unchecked"  # 编辑即清核验结论（R4 §3.1，Task 16 正式并入状态机）
+                st.verify_findings = []
+                st.verify_notes = []
             released = self._released
             if released is not None and isinstance(result, ToolMessage):
                 first, _ = released
@@ -389,6 +578,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         if blocked is not None:
             return blocked
         result = await handler(request)
+        await self._verify_touchpoint(request, result)  # R4 第五道：承重断言核验
         return self._post_tool_call(request, result)
 
     def wrap_tool_call(
@@ -400,6 +590,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         if blocked is not None:
             return blocked
         result = handler(request)
+        self._verify_touchpoint_sync(request, result)
         return self._post_tool_call(request, result)
 
 
