@@ -36,12 +36,15 @@ from octop_harness.report_qa.checks import CHECKERS
 
 logger = logging.getLogger(__name__)
 
-# 章验收触点四检查器（设计 §4.2：无来源精确数值 / 图表配套 / 台账登记 / 退化）
+# 章验收触点检查器（设计 §4.2 + R4 §2.2 引用三级判定进门禁）
 CHAPTER_CHECKERS = (
     "unsourced_precise",
     "figure_companion",
     "ledger_freshness",
     "degeneration",
+    "citation_dangling",
+    "citation_orphan",
+    "citation_ledger_ref",
 )
 # merge 终闸：四检查器 + 数值一致性（M1 修正后）+ 结构
 MERGE_CHECKERS = CHAPTER_CHECKERS + ("numeric_consistency", "structure")

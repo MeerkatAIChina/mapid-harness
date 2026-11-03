@@ -16,6 +16,13 @@ from octop_harness.report_qa.numparse import (
     spans_support,
     values_compatible,
 )
+from octop_harness.report_qa.citations import (
+    CITATION_REF_RE,
+    extract_citation_refs,
+    parse_ledger_refs,
+    parse_reference_section,
+    strip_reference_section,
+)
 from octop_harness.report_qa.constants import (
     APPENDIX_MARK,
     ATTRIBUTION_RE,
@@ -586,7 +593,12 @@ def check_unsourced_precise(workspace: Path) -> list[Finding]:
                 lo = max(0, i - SOURCE_WINDOW_LINES)
                 hi = min(len(lines), i + SOURCE_WINDOW_LINES + 1)
             window = "\n".join(lines[lo:hi])
-            if SOURCE_RE.search(window) or TODO_MARK in window:
+            # 双样式永久并存（设计文档_R4 §2.2）：旧式来源署名与新式 [n] 引用都合法
+            if (
+                SOURCE_RE.search(window)
+                or CITATION_REF_RE.search(window)
+                or TODO_MARK in window
+            ):
                 continue
             findings.append(
                 _finding(
@@ -712,7 +724,10 @@ def check_figure_companion(workspace: Path) -> list[Finding]:
             lo = max(0, start - FIGURE_WINDOW_LINES)
             hi = min(len(lines), end + FIGURE_WINDOW_LINES + 1)
             window = "\n".join(lines[lo:hi])
-            has_source = SOURCE_RE.search(window) is not None
+            has_source = (
+                SOURCE_RE.search(window) is not None
+                or CITATION_REF_RE.search(window) is not None
+            )
             has_commentary = any(
                 lines[j].strip()
                 and not _is_table_line(lines[j])
@@ -926,6 +941,80 @@ def check_conclusion_source(workspace: Path) -> list[Finding]:
     return findings
 
 
+# ---------------------------------------------------------------------------
+# 10. 引用三级判定（设计文档_R4 §2.2：悬空/孤儿/未注册编号）
+# ---------------------------------------------------------------------------
+
+
+def check_citation_dangling(workspace: Path) -> list[Finding]:
+    """正文 [n] 在章末参考资料节无对应条目（悬空引用）→ high。"""
+    findings: list[Finding] = []
+    for _, path in _chapter_files(workspace):
+        text = _read(path)
+        entries = parse_reference_section(text)
+        body_refs = extract_citation_refs(strip_reference_section(text))
+        for n in sorted(body_refs - set(entries)):
+            findings.append(
+                _finding(
+                    "citation_dangling",
+                    SEVERITY_HIGH,
+                    _rel(workspace, path),
+                    0,
+                    f"悬空引用：正文 [{n}] 在章末参考资料节无对应条目",
+                    f"[{n}]",
+                )
+            )
+    return findings
+
+
+def check_citation_orphan(workspace: Path) -> list[Finding]:
+    """章末参考资料条目未被正文引用（孤儿条目，凑数假装饰）→ medium。"""
+    findings: list[Finding] = []
+    for _, path in _chapter_files(workspace):
+        text = _read(path)
+        entries = parse_reference_section(text)
+        if not entries:
+            continue
+        body_refs = extract_citation_refs(strip_reference_section(text))
+        for n in sorted(set(entries) - body_refs):
+            findings.append(
+                _finding(
+                    "citation_orphan",
+                    SEVERITY_MEDIUM,
+                    _rel(workspace, path),
+                    0,
+                    f"孤儿条目：章末参考资料 [{n}] 未被正文引用",
+                    entries[n],
+                )
+            )
+    return findings
+
+
+def check_citation_ledger_ref(workspace: Path) -> list[Finding]:
+    """正文 [n] 须在台账 ref 列注册过 → high；台账无 ref 列（旧宿主）整体豁免。"""
+    ledger_path = workspace / LEDGER_FILENAME
+    if not ledger_path.is_file():
+        return []
+    registered = parse_ledger_refs(_read(ledger_path))
+    if registered is None:
+        return []
+    findings: list[Finding] = []
+    for _, path in _chapter_files(workspace):
+        body_refs = extract_citation_refs(strip_reference_section(_read(path)))
+        for n in sorted(body_refs - registered):
+            findings.append(
+                _finding(
+                    "citation_ledger_ref",
+                    SEVERITY_HIGH,
+                    _rel(workspace, path),
+                    0,
+                    f"未注册编号：正文 [{n}] 未在 data_ledger.md 的 ref 列登记取号",
+                    f"[{n}]",
+                )
+            )
+    return findings
+
+
 CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "degeneration": check_degeneration,
     "word_count": check_word_count,
@@ -936,6 +1025,9 @@ CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "figure_companion": check_figure_companion,
     "structure": check_structure,
     "conclusion_source": check_conclusion_source,
+    "citation_dangling": check_citation_dangling,
+    "citation_orphan": check_citation_orphan,
+    "citation_ledger_ref": check_citation_ledger_ref,
 }
 
 

@@ -629,3 +629,93 @@ def test_conclusion_source_missing_chapter_hit(tmp_path: Path) -> None:
     )
     findings = checks.check_conclusion_source(ws)
     assert any("不存在" in f["message"] or "第 7 章" in f["message"] for f in findings)
+
+# ---------------------------------------------------------------------------
+# 10. 引用三级判定（设计文档_R4 §2.2，Task 3）
+# ---------------------------------------------------------------------------
+
+LEDGER_WITH_REF = "\n".join([
+    "# 数据台账", "",
+    "| 指标名 | 数值 | 单位 | 口径/年份 | 来源 | 首现章节 | ref |",
+    "|---|---|---|---|---|---|---|",
+    "| 欧普照明2024年营业收入 | 70.96 | 亿元 | 合并报表 | 欧普照明2024年年度报告 | 03 | 3 |",
+    "",
+])
+
+CH_WITH_REFS = "\n".join([
+    "# 03 欧普深度剖析", "",
+    "欧普照明 2024 年营收 70.96 亿元[3]，同比增长 5.2%[3]。" "",
+    BODY_600, "",
+    "## 本章参考资料", "",
+    "[3] 欧普照明《2024年年度报告》，2025，上交所披露平台",
+    "",
+])
+
+
+def test_citation_dangling_flags_missing_entry(tmp_path: Path) -> None:
+    # 悬空引用在正文（参考资料节之前）：[7] 在章末无条目
+    ch = CH_WITH_REFS.replace(BODY_600, BODY_600 + "\n另一段引用了[7]这个编号但章末没有条目。")
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
+    findings = checks.check_citation_dangling(ws)
+    assert any(f["check"] == "citation_dangling" and f["severity"] == "high" and "[7]" in f["message"] for f in findings)
+
+
+def test_citation_dangling_clean(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": CH_WITH_REFS})
+    assert checks.check_citation_dangling(ws) == []
+
+
+def test_citation_orphan_flags_uncited_entry(tmp_path: Path) -> None:
+    ch = CH_WITH_REFS + "[9] 某券商《照明行业研报》，2024，https://x\n"
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
+    findings = checks.check_citation_orphan(ws)
+    assert any(f["check"] == "citation_orphan" and f["severity"] == "medium" and "[9]" in f["message"] for f in findings)
+
+
+def test_citation_orphan_clean(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": CH_WITH_REFS})
+    assert checks.check_citation_orphan(ws) == []
+
+
+def test_citation_ledger_ref_flags_unregistered(tmp_path: Path) -> None:
+    ch = CH_WITH_REFS.replace("[3]", "[8]")
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": ch}, ledger=LEDGER_WITH_REF)
+    findings = checks.check_citation_ledger_ref(ws)
+    assert any(f["check"] == "citation_ledger_ref" and f["severity"] == "high" and "[8]" in f["message"] for f in findings)
+
+
+def test_citation_ledger_ref_skips_legacy_ledger(tmp_path: Path) -> None:
+    # 台账无 ref 列（旧宿主）→ 跳过，任何 [n] 都不报
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": CH_WITH_REFS}, ledger=good_ledger())
+    assert checks.check_citation_ledger_ref(ws) == []
+
+
+def test_unsourced_precise_accepts_bracket_ref(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": CH_WITH_REFS})
+    assert checks.check_unsourced_precise(ws) == []
+
+
+def test_unsourced_precise_accepts_legacy_style(tmp_path: Path) -> None:
+    # 双样式永久并存：旧式「数据来源：」标注仍合法
+    ch = "欧普照明 2024 年营收 70.96 亿元。\n> 数据来源：欧普照明2024年年度报告（2024）\n" + BODY_600
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
+    assert checks.check_unsourced_precise(ws) == []
+
+
+def test_unsourced_precise_still_flags_bare_number(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": "欧普照明 2024 年营收 70.96 亿元。\n" + BODY_600})
+    findings = checks.check_unsourced_precise(ws)
+    assert any(f["check"] == "unsourced_precise" for f in findings)
+
+
+def test_figure_companion_accepts_bracket_ref(tmp_path: Path) -> None:
+    ch = "\n".join([
+        "# 03 欧普", "",
+        "| 企业 | 份额 |", "|---|---|", "| 欧普 | 39.3% |", "",
+        "> 数据来源：[3]", "> 解读：欧普份额领先，支撑其龙头判断。该解读两句以上。", "",
+        BODY_600, "",
+        "## 本章参考资料", "",
+        "[3] CSA《行业白皮书》，2024，https://x", "",
+    ])
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
+    assert checks.check_figure_companion(ws) == []
