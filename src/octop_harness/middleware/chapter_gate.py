@@ -44,6 +44,7 @@ from octop_harness.middleware.verification import (
     with_retry,
 )
 from octop_harness.report_qa.checks import CHECKERS
+from octop_harness.report_qa.outline import parse_exit_applications, parse_word_count_floors
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ _HINTS = {
     "numeric_consistency": "统一台账数值口径",
     "structure": "修复结构问题",
     "verification": "证伪断言必须删改",
+    "word_count_floor": "围绕 outline 要点续写加深；确属扩无可扩时在 progress.md 写「## 出口申请」举证",
 }
 
 _GD_TAG_RE = re.compile(r"（GD-[^）]*）")
@@ -111,6 +113,7 @@ class _ChapterState:
     verify_notes: list[str] = field(default_factory=list)  # 查无实证 → 降级要求
     reviewed: bool = False  # R4 §3.2 审校维度（审校链置位）
     exit_granted: bool = False  # R4 §7.2 诚实出口举证通过（Task 20 置位）
+    extend_rounds: int = 0  # 续写轮数（≤3 硬上限，与 repair_rounds 独立分账）
 
 
 def _tool_meta(request: ToolCallRequest) -> tuple[str, str, dict[str, Any]]:
@@ -166,6 +169,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._verify_backoff = 1.0  # 重试退避基数（测试可置 0）
         self._rng = random.Random()
         self._auto_reviewed: list[tuple[str, int]] = []  # merge 前自动审校改动（章, 处数）
+        self._exit_rejected: dict[str, str] = {}  # 出口举证驳回原因（章 → reason）
         self._restore_state()
         open_items = self._open_release_items()
         if open_items:
@@ -266,6 +270,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     "reviewed": st.reviewed,
                     "exit_granted": st.exit_granted,
                     "repair_rounds": st.repair_rounds,
+                    "extend_rounds": st.extend_rounds,
                     "findings": st.findings,
                     "verify_findings": st.verify_findings,
                     "verify_notes": st.verify_notes,
@@ -296,6 +301,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 st.reviewed = bool(raw.get("reviewed", False))
                 st.exit_granted = bool(raw.get("exit_granted", False))
                 st.repair_rounds = int(raw.get("repair_rounds", 0))
+                st.extend_rounds = int(raw.get("extend_rounds", 0))
                 st.findings = list(raw.get("findings", []))
                 st.verify_findings = list(raw.get("verify_findings", []))
                 st.verify_notes = list(raw.get("verify_notes", []))
@@ -433,6 +439,82 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 continue
             await self._review_chapter(ch)
 
+    # ------------------------------------------------------------------
+    # 诚实出口举证（R4 §7.4，merge 前审校链核实）
+    # ------------------------------------------------------------------
+
+    _EXIT_JUDGE_SYSTEM = (
+        "你是审校编辑，核实「诚实出口」举证是否成立。成立的标准：大纲要点→小节覆盖映射真实"
+        "（章节文本确有对应小节且覆盖要点）；实际/目标字数与文本量级一致；不足原因成立"
+        "（公开信息确实有限，非偷懒）。映射虚构、字数虚报、原因不成立 → 一律驳回。"
+        '输出 JSON：{"granted": true|false, "reason": "一句话"}'
+    )
+
+    async def _assess_exit(self, chapter: str, app: dict[str, Any]) -> tuple[bool, str]:
+        text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
+        raw = await self._model_access.ainvoke_text(
+            f"举证条目：{json.dumps(app, ensure_ascii=False)}\n\n章节文本：\n{text}",
+            system=self._EXIT_JUDGE_SYSTEM,
+            response_format="json",
+            temperature=0,
+            timeout_s=120.0,
+        )
+        cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
+        data = json.loads(cleaned[cleaned.find("{") :])
+        return bool(data.get("granted")), str(data.get("reason", ""))
+
+    async def _merge_exit_review(self, request: ToolCallRequest) -> None:
+        """merge 前核实 progress.md「## 出口申请」举证：通过置 exit_granted 并记放行；
+        不实驳回留原因；infra 失败按驳回处置（fail-closed，出口不虚开）。"""
+        if self._model_access is None:
+            return
+        tool_name, _, _ = _tool_meta(request)
+        if tool_name.rsplit("/", 1)[-1] != _MERGE_TOOL:
+            return
+        progress = self._workspace / "progress.md"
+        if not progress.is_file():
+            return
+        try:
+            apps = parse_exit_applications(progress.read_text(encoding="utf-8"))
+        except OSError:
+            return
+        if not apps:
+            return
+        by_num = {ch.split("_")[0]: ch for ch in self._all_workspace_chapters()}
+        for app in apps:
+            chapter = by_num.get(str(app["chapter"]))
+            if chapter is None:
+                continue
+            st = self._chapter_state(chapter)
+            if st.exit_granted:
+                continue
+            try:
+                granted, reason = await with_retry(
+                    lambda a=app: self._assess_exit(chapter, a),
+                    backoff_s=self._verify_backoff,
+                )
+            except Exception as exc:
+                logger.warning("chapter_gate: 第 %s 章出口举证核实 infra 失败：%s", chapter, exc)
+                self._exit_rejected[chapter] = "举证核实调用失败（infra），视为未通过"
+                continue
+            if granted:
+                st.exit_granted = True
+                self._exit_rejected.pop(chapter, None)
+                self._append_release_notes(
+                    "诚实出口",
+                    [
+                        {
+                            "file": f"chapters/{chapter}",
+                            "line": 0,
+                            "message": f"字数不足经举证核实放行（{reason}）",
+                        }
+                    ],
+                )
+                logger.info("chapter_gate: 第 %s 章诚实出口举证通过：%s", chapter, reason)
+            else:
+                self._exit_rejected[chapter] = reason or "举证不实"
+                logger.info("chapter_gate: 第 %s 章出口举证驳回：%s", chapter, reason)
+
     @property
     def model_access(self) -> Any | None:
         """核验/审校独立模型通路（设计_R4 §3）；None = 核验/审校工序关闭。"""
@@ -442,6 +524,39 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     # 评估
     # ------------------------------------------------------------------
 
+    def _floors(self) -> dict[str, int]:
+        path = self._workspace / "outline.md"
+        if not path.is_file():
+            return {}
+        try:
+            return parse_word_count_floors(path.read_text(encoding="utf-8"))
+        except OSError:
+            return {}
+
+    def _floor_finding(self, chapter: str) -> dict[str, Any] | None:
+        """字数下限判定（设计 §7.4 新逻辑，与 check_word_count 的 GD-13 自报偏差职责不混）。"""
+        st = self._chapter_state(chapter)
+        if st.exit_granted:
+            return None  # 诚实出口举证通过 = 合规但记录
+        num = chapter.split("_")[0]
+        floor = self._floors().get(num)
+        if not floor:
+            return None  # outline 无该章下限 → 不触发续写判定
+        try:
+            text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
+        except OSError:
+            return None
+        actual = len(re.sub(r"\s", "", text))
+        if actual >= floor:
+            return None
+        return {
+            "file": f"chapters/{chapter}",
+            "line": 1,
+            "check": "word_count_floor",
+            "severity": "medium",
+            "message": f"字数不足：非空白字符 {actual} < outline 下限 {floor}",
+        }
+
     def _evaluate_chapter(self, chapter: str) -> list[dict[str, Any]]:
         rel = f"chapters/{chapter}"
         findings: list[dict[str, Any]] = []
@@ -449,12 +564,19 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             for f in CHECKERS[name](self._workspace):
                 if f["file"] == rel:
                     findings.append(f)
+        floor = self._floor_finding(chapter)
+        if floor is not None:
+            findings.append(floor)
         return findings
 
     def _evaluate_all(self) -> list[dict[str, Any]]:
         findings: list[dict[str, Any]] = []
         for name in MERGE_CHECKERS:
             findings.extend(CHECKERS[name](self._workspace))
+        for ch in self._all_workspace_chapters():
+            floor = self._floor_finding(ch)
+            if floor is not None:
+                findings.append(floor)
         return findings
 
     # ------------------------------------------------------------------
@@ -683,6 +805,42 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 return None
             first = dirty[0]
             st = self._chapter_state(first)
+            # 预算分账（设计 §7.4）：仅字数不足的脏章走续写预算 extend_rounds（≤3），
+            # 其余内容问题走修复预算 repair_rounds（N=2），两计数器独立。
+            floor_only = (
+                bool(st.findings)
+                and all(f.get("check") == "word_count_floor" for f in st.findings)
+                and not st.verify_findings
+            )
+            if floor_only:
+                if st.extend_rounds >= 3:
+                    logger.warning(
+                        "chapter_gate: 第 %s 章续写已达硬上限（3 轮），放行开新章 %s；"
+                        "字数缺口交完稿评审（拼接病防护优先）",
+                        first,
+                        chapter,
+                    )
+                    self._released = (first, chapter, "续写上限放行")
+                    return None
+                st.extend_rounds += 1
+                logger.info(
+                    "chapter_gate: 阻断开新章 %s（第 %s 章字数不足，第 %d 次续写拦截）",
+                    chapter,
+                    first,
+                    st.extend_rounds,
+                )
+                return ToolMessage(
+                    content=(
+                        f"[chapter_gate] 门禁：第 {first.split('_')[0]} 章（{first}）"
+                        f"字数未达 outline 下限（第 {st.extend_rounds}/3 次续写拦截）。"
+                        "请围绕 outline 要点续写加深后再次调用 report_stats 复测；"
+                        "确属「扩无可扩」时，在 progress.md 写「## 出口申请」举证"
+                        "（章名 + 大纲要点→小节覆盖映射 + 实际/目标字数 + 不足原因）。"
+                    ),
+                    name=tool_name or "tool",
+                    tool_call_id=call_id,
+                    status="error",
+                )
             if st.repair_rounds >= self._max:
                 logger.warning(
                     "chapter_gate: 第 %s 章已达自修上限（%d 次），放行开新章 %s；"
@@ -692,7 +850,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     chapter,
                     len(st.findings),
                 )
-                self._released = (first, chapter)  # post 阶段追加放行附言
+                self._released = (first, chapter, "开新章放行")
                 return None
             st.repair_rounds += 1
             logger.info(
@@ -746,6 +904,8 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         )
                     if not st.reviewed:
                         hard.append(f"第 {num} 章未审校")
+                for ch, reason in self._exit_rejected.items():
+                    hard.append(f"第 {ch.split('_')[0]} 章出口举证被驳回：{reason}")
                 if hard:
                     logger.info("chapter_gate: merge 闸硬失败（工序缺位）：%s", hard)
                     return ToolMessage(
@@ -814,6 +974,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     st.status = "dirty" if combined else "clean"
                     if not combined:
                         st.repair_rounds = 0  # 复测通过，额度复位
+                        st.extend_rounds = 0
                     results.append((ch, combined))
                 ps = (
                     self._chapter_postscript(results[0][1])
@@ -863,14 +1024,15 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 st.verify_findings = []
                 st.verify_notes = []
                 st.reviewed = False
+                st.exit_granted = False  # 裁定未言明，取保守：编辑后举证需重新核实（自动重核）
             released = self._released
             if released is not None and isinstance(result, ToolMessage):
-                first, _ = released
-                self._append_release_notes("开新章放行", self._chapter_state(first).findings)
+                first, _, gate_name = released
+                self._append_release_notes(gate_name, self._chapter_state(first).findings)
                 result = ToolMessage(
                     content=(
                         f"{result.content}\n\n[chapter_gate] 第 {first.split('_')[0]} 章"
-                        f"已达自修上限（{self._max} 次），本次放行并记录。"
+                        f"已达自修上限，本次放行并记录（{gate_name}）。"
                         f"{self._RELEASE_TERMINATOR}"
                     ),
                     name=result.name,
@@ -925,6 +1087,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     ) -> ToolMessage | Command[Any]:
         await self._merge_preverify(request)
         await self._merge_autoreview(request)  # R4 §3.2：先核验（preverify）后审校
+        await self._merge_exit_review(request)  # R4 §7.4：诚实出口举证核实
         blocked = self._pre_tool_call(request)
         if blocked is not None:
             self._persist_state()
@@ -943,8 +1106,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         try:
             asyncio.run(self._merge_preverify(request))
             asyncio.run(self._merge_autoreview(request))
+            asyncio.run(self._merge_exit_review(request))
         except Exception:
-            logger.warning("chapter_gate: sync 路径 merge 补核/审校失败（fail-open）", exc_info=True)
+            logger.warning("chapter_gate: sync 路径 merge 补核/审校/出口核实失败（fail-open）", exc_info=True)
         blocked = self._pre_tool_call(request)
         if blocked is not None:
             self._persist_state()

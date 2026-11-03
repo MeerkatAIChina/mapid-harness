@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Awaitable
 from pathlib import Path
@@ -570,3 +571,102 @@ async def test_direct_write_to_merged_report_blocked(tmp_path: Path) -> None:
     # 普通章节写入不受影响
     ok = await _write(mw, "write_file", f"chapters/{NEW_CH}")
     assert ok.status != "error"
+
+
+# ---------------------------------------------------------------------------
+# R4 Task 20：续写闭环 + 诚实出口举证制（设计 §7.4）
+# ---------------------------------------------------------------------------
+
+OUTLINE_FLOOR_03 = "# 大纲\n\n- 第3章 剖析：≥6,000字\n"
+
+PROGRESS_EXIT_03 = """# 进度
+
+## 出口申请
+
+- 章：03_剖析.md
+- 大纲要点覆盖：要点1→§3.2；要点2→§3.3
+- 实际/目标：17 / 6,000
+- 不足原因：公开信息已穷尽
+"""
+
+
+class _ExitModel:
+    """三角色桩：出口核实 → granted 参数；审校 → 空编辑；核验抽取 → 空清单。"""
+
+    def __init__(self, granted: bool, reason: str = "映射真实") -> None:
+        self._granted = granted
+        self._reason = reason
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        system = str(kwargs.get("system") or "")
+        if "诚实出口" in system:
+            return json.dumps({"granted": self._granted, "reason": self._reason}, ensure_ascii=False)
+        if "审校" in system:
+            return '{"edits": [], "doubts": []}'
+        return '{"assertions": []}'
+
+
+async def test_below_floor_triggers_continuation_postscript(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    (ws / "outline.md").write_text(OUTLINE_FLOOR_03, encoding="utf-8")
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, f"chapters/{CLEAN_CH}")
+    st = mw._chapters[CLEAN_CH]
+    assert st.status == "dirty"
+    assert "字数不足" in out.content
+    assert "出口申请" in out.content  # 附言指引含诚实出口路径
+
+
+async def test_missing_floor_skips_chapter(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    (ws / "outline.md").write_text("# 大纲\n\n- 第9章 其他：≥6,000字\n", encoding="utf-8")
+    mw = ChapterGateMiddleware(ws)
+    out = await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert "本章检查通过" in out.content
+
+
+async def test_extend_rounds_hard_cap_3(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    (ws / "outline.md").write_text(OUTLINE_FLOOR_03, encoding="utf-8")
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{CLEAN_CH}")  # 字数不足置脏
+    st = mw._chapters[CLEAN_CH]
+    for i in range(1, 4):
+        blocked = await _write(mw, "write_file", f"chapters/{NEW_CH}")
+        assert blocked.status == "error"
+        assert "续写" in blocked.content
+        assert st.extend_rounds == i
+        assert st.repair_rounds == 0  # 预算分账：续写不消耗修复 N=2
+    released = await _write(mw, "write_file", f"chapters/{NEW_CH}")
+    assert released.status != "error"  # 第 4 次放行
+    notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
+    assert "续写上限放行" in notes
+
+
+async def test_exit_granted_after_review_verifies_evidence(tmp_path: Path) -> None:
+    # 章体过空壳线（≥500）但低于 outline 下限 6000 —— 诚实出口的真实场景
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_LONG})
+    (ws / "outline.md").write_text(OUTLINE_FLOOR_03, encoding="utf-8")
+    (ws / "progress.md").write_text(PROGRESS_EXIT_03, encoding="utf-8")
+    mw = ChapterGateMiddleware(ws, model_access=_ExitModel(True))
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{CLEAN_CH}")  # dirty（字数不足）
+    out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
+    assert out.status != "error"  # 举证通过 → merge 放行
+    st = mw._chapters[CLEAN_CH]
+    assert st.exit_granted is True
+    notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
+    assert "诚实出口" in notes  # 合规但记录
+
+
+async def test_exit_rejected_blocks_merge(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_LONG})
+    (ws / "outline.md").write_text(OUTLINE_FLOOR_03, encoding="utf-8")
+    (ws / "progress.md").write_text(PROGRESS_EXIT_03, encoding="utf-8")
+    mw = ChapterGateMiddleware(ws, model_access=_ExitModel(False, "映射虚构：文中无 §3.3"))
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
+    assert out.status == "error"
+    assert "出口举证被驳回" in out.content
+    assert mw._chapters[CLEAN_CH].exit_granted is False
