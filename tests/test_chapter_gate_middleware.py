@@ -492,3 +492,61 @@ async def test_merge_gate_hard_blocks_pending_verification(tmp_path: Path) -> No
         assert out.status == "error"
     assert "未完成核验" in out.content
     assert mw._merge_rounds == 0  # 硬失败不消耗 merge 额度
+
+
+# ---------------------------------------------------------------------------
+# R4 Task 18：放行落盘追踪 + 附言终止语 + 未闭环复述（设计 §7.1/7.2，A4/A6）
+# ---------------------------------------------------------------------------
+
+
+async def _dirty_then_release(tmp_path: Path):
+    """脏章阻断 2 次后第 3 次开新章放行；返回 (mw, ws, out)。"""
+    ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    await _stats(mw, f"chapters/{DIRTY_CH}")  # 置脏
+    for _ in range(2):
+        blocked = await _write(mw, "write_file", f"chapters/{NEW_CH}")
+        assert blocked.status == "error"
+    out = await _write(mw, "write_file", f"chapters/{NEW_CH}")  # 第 3 次放行
+    return mw, ws, out
+
+
+async def test_release_findings_persisted(tmp_path: Path) -> None:
+    mw, ws, out = await _dirty_then_release(tmp_path)
+    assert out.status != "error"
+    notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
+    assert DIRTY_CH in notes
+    assert "未闭环" in notes
+    assert "开新章放行" in notes
+
+
+async def test_release_postscript_has_terminator(tmp_path: Path) -> None:
+    _, _, out = await _dirty_then_release(tmp_path)
+    assert "无需处理" in out.content  # A6 终止语：防模型把放行附言当继续修指令空转
+
+
+async def test_next_merge_repeats_open_items(tmp_path: Path) -> None:
+    mw, ws, _ = await _dirty_then_release(tmp_path)
+    out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
+    assert out.status == "error"  # 脏章本身拦 merge
+    assert "未闭环放行条目复述" in out.content
+    assert DIRTY_CH in out.content
+
+
+async def test_open_items_closed_after_clean_merge(tmp_path: Path) -> None:
+    mw, ws, _ = await _dirty_then_release(tmp_path)
+    # 修复脏章 → merge 全量复测通过 → 未闭环条目核销（用非空壳长文，否则 structure 拦 merge）
+    (ws / "chapters" / DIRTY_CH).write_text(CLEAN_LONG, encoding="utf-8")
+    await _stats(mw, f"chapters/{DIRTY_CH}")
+    out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
+    assert out.status != "error"
+    notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
+    assert "已闭环（复测通过）" in notes
+    assert "| 未闭环 |" not in notes
+
+
+async def test_startup_recaps_open_items(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    mw, ws, _ = await _dirty_then_release(tmp_path)
+    with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
+        ChapterGateMiddleware(ws)  # 新实例 = 任务重启
+    assert any("未闭环放行条目" in rec.message for rec in caplog.records)

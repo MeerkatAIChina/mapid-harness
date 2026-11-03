@@ -70,7 +70,7 @@ _MERGE_TOOL = "merge_chapters"
 _CHAPTER_RE = re.compile(r"(?:^|[/\\])chapters[/\\]([^/\\]+\.md)$")
 
 _HINTS = {
-    "unsourced_precise": "补来源标注或标 [待核实]",
+    "unsourced_precise": "补来源标注或标 [待核实]（正确写法如：营收 70.96 亿元[1]，章末「## 本章参考资料」列出处）",
     "degeneration": "重写重复段，禁止复制凑字数",
     "figure_companion": "补来源题注与解读",
     "ledger_freshness": "先登记 data_ledger.md",
@@ -160,13 +160,95 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._chapters: dict[str, _ChapterState] = {}
         self._merge_rounds = 0
         self._released: tuple[str, str] | None = None  # (脏章, 新开章) 放行附言
-        self._merge_released: int | None = None  # merge 放行时遗留 findings 数
+        self._merge_released: list[dict[str, Any]] | None = None  # merge 放行时遗留 findings
         self._infra_streak = 0  # 连续 infra 失败次数（核验事故计数器，与 N=2 分开）
         self._verify_aborted = False  # 连续 3 次 infra 失败 = 事故中止，本轮停止核验
         self._verify_backoff = 1.0  # 重试退避基数（测试可置 0）
         self._rng = random.Random()
         self._auto_reviewed: list[tuple[str, int]] = []  # merge 前自动审校改动（章, 处数）
         self._restore_state()
+        open_items = self._open_release_items()
+        if open_items:
+            logger.warning(
+                "chapter_gate: 启动复述——%d 条未闭环放行条目待完稿评审：%s",
+                len(open_items),
+                "；".join(f"{it['chapter']}:{it['item'][:30]}" for it in open_items[:5]),
+            )
+
+    # ------------------------------------------------------------------
+    # 放行追踪落盘（设计_R4 §7.1，A4）
+    # ------------------------------------------------------------------
+
+    _RELEASE_FILE = "gate_release_notes.md"
+    _RELEASE_HEADER = (
+        "# 章节门禁放行记录\n\n| 时间 | 闸门 | 章 | 条目 | 终态 |\n| --- | --- | --- | --- | --- |\n"
+    )
+    _RELEASE_TERMINATOR = "以下问题已记录，交完稿评审，**无需处理**。"
+
+    def _parse_release_notes(self) -> list[dict[str, str]]:
+        path = self._workspace / self._RELEASE_FILE
+        if not path.is_file():
+            return []
+        rows: list[dict[str, str]] = []
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                cells = [c.strip() for c in line.strip().strip("|").split("|")]
+                if len(cells) == 5 and cells[0][:1].isdigit():
+                    rows.append(
+                        dict(zip(("ts", "gate", "chapter", "item", "status"), cells, strict=True))
+                    )
+        except OSError:
+            return []
+        return rows
+
+    def _open_release_items(self) -> list[dict[str, str]]:
+        return [r for r in self._parse_release_notes() if r["status"] == "未闭环"]
+
+    def _append_release_notes(self, gate: str, findings: list[dict[str, Any]]) -> None:
+        if not findings:
+            return
+        path = self._workspace / self._RELEASE_FILE
+        try:
+            if not path.is_file():
+                path.write_text(self._RELEASE_HEADER, encoding="utf-8")
+            ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            with path.open("a", encoding="utf-8") as fh:
+                for f in findings:
+                    item = f"行 {f.get('line', 0)}：{_short(f.get('message', ''))}".replace("|", "/")
+                    chapter = str(f.get("file", "")).removeprefix("chapters/")
+                    fh.write(f"| {ts} | {gate} | {chapter} | {item} | 未闭环 |\n")
+        except OSError:
+            logger.warning("chapter_gate: gate_release_notes.md 写入失败", exc_info=True)
+
+    def _close_release_items(self, clean_files: set[str]) -> None:
+        """merge 全量复测无 findings 的章，其未闭环条目标记闭环。"""
+        rows = self._parse_release_notes()
+        if not rows:
+            return
+        changed = False
+        for r in rows:
+            if r["status"] == "未闭环" and f"chapters/{r['chapter']}" in clean_files:
+                r["status"] = "已闭环（复测通过）"
+                changed = True
+        if changed:
+            try:
+                lines = [self._RELEASE_HEADER]
+                lines += [
+                    f"| {r['ts']} | {r['gate']} | {r['chapter']} | {r['item']} | {r['status']} |\n"
+                    for r in rows
+                ]
+                (self._workspace / self._RELEASE_FILE).write_text("".join(lines), encoding="utf-8")
+            except OSError:
+                pass
+
+    def _open_items_recap(self) -> str:
+        """未闭环条目复述（merge 闸强制复述，设计 §7.1）。"""
+        open_items = self._open_release_items()
+        if not open_items:
+            return ""
+        lines = ["未闭环放行条目复述（交完稿评审清点）："]
+        lines.extend(f"- {r['chapter']}：{r['item']}" for r in open_items[:10])
+        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # 状态落盘 / 恢复（设计_R4 §3.3：重启不丢，调研坑①）
@@ -666,6 +748,10 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             # 证伪断言（章级第五道产物）并入 merge 全量 findings
             for ch in self._all_workspace_chapters():
                 findings.extend(self._chapter_state(ch).verify_findings)
+            # 放行条目闭环核销：本次全量复测无 findings 的章，其未闭环条目标闭环
+            dirty_files = {f["file"] for f in findings}
+            all_files = {f"chapters/{ch}" for ch in self._all_workspace_chapters()}
+            self._close_release_items(all_files - dirty_files)
             if not findings:
                 return None
             if self._merge_rounds >= self._max:
@@ -675,7 +761,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     self._merge_rounds,
                     len(findings),
                 )
-                self._merge_released = len(findings)
+                self._merge_released = findings
                 return None
             self._merge_rounds += 1
             logger.info(
@@ -683,8 +769,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 len(findings),
                 self._merge_rounds,
             )
+            recap = self._open_items_recap()
             return ToolMessage(
-                content=self._merge_summary(findings),
+                content=self._merge_summary(findings) + (f"\n\n{recap}" if recap else ""),
                 name=tool_name or "tool",
                 tool_call_id=call_id,
                 status="error",
@@ -768,11 +855,12 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             released = self._released
             if released is not None and isinstance(result, ToolMessage):
                 first, _ = released
+                self._append_release_notes("开新章放行", self._chapter_state(first).findings)
                 result = ToolMessage(
                     content=(
                         f"{result.content}\n\n[chapter_gate] 第 {first.split('_')[0]} 章"
-                        f"已达自修上限（{self._max} 次），本次放行并记录，"
-                        "遗留问题交完稿评审清点。"
+                        f"已达自修上限（{self._max} 次），本次放行并记录。"
+                        f"{self._RELEASE_TERMINATOR}"
                     ),
                     name=result.name,
                     tool_call_id=result.tool_call_id,
@@ -782,13 +870,14 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             return result
 
         if base == _MERGE_TOOL:
-            released_n = self._merge_released
-            if released_n is not None and isinstance(result, ToolMessage):
+            released_findings = self._merge_released
+            if released_findings is not None and isinstance(result, ToolMessage):
+                self._append_release_notes("merge 放行", released_findings)
                 result = ToolMessage(
                     content=(
                         f"{result.content}\n\n[chapter_gate] 合并闸门已达自修上限"
                         f"（{self._max} 次），本次放行并记录，"
-                        f"遗留 {released_n} 条问题交完稿评审清点。"
+                        f"遗留 {len(released_findings)} 条问题。{self._RELEASE_TERMINATOR}"
                     ),
                     name=result.name,
                     tool_call_id=result.tool_call_id,
