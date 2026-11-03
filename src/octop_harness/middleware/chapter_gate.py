@@ -660,9 +660,20 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         base = tool_name.rsplit("/", 1)[-1]
 
         if base in _WRITE_TOOLS:
-            chapter = _chapter_name_from_path(
-                args.get("file_path") or args.get("path")
-            )
+            target = str(args.get("file_path") or args.get("path") or "")
+            # R4 裁定 13：堵 merge 旁路——直接写 report_merged.md 绕过全部成书期工序，硬失败
+            if target.replace("\\", "/").endswith("report_merged.md"):
+                logger.info("chapter_gate: 拦截 report_merged.md 直接写入（merge 旁路）")
+                return ToolMessage(
+                    content=(
+                        "[chapter_gate] 禁止直接写 report_merged.md（会绕过核验/审校/检查工序）。"
+                        "请调用 merge_chapters 由门禁合并生成。"
+                    ),
+                    name=tool_name or "tool",
+                    tool_call_id=call_id,
+                    status="error",
+                )
+            chapter = _chapter_name_from_path(args.get("file_path") or args.get("path"))
             if chapter is None:
                 return None
             if self._chapter_exists(chapter):

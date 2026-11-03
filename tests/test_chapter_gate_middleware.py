@@ -550,3 +550,23 @@ async def test_startup_recaps_open_items(tmp_path: Path, caplog: pytest.LogCaptu
     with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
         ChapterGateMiddleware(ws)  # 新实例 = 任务重启
     assert any("未闭环放行条目" in rec.message for rec in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# R4 Task 21：merge 旁路封堵（设计裁定 13）
+# ---------------------------------------------------------------------------
+
+
+async def test_direct_write_to_merged_report_blocked(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT})
+    mw = ChapterGateMiddleware(ws)
+    for tool in ("write_file", "edit_file"):
+        out = await _write(mw, tool, "report_merged.md")
+        assert out.status == "error"
+        assert "merge_chapters" in out.content
+    # 相对/虚拟/绝对路径都拦
+    out = await _write(mw, "write_file", "/workspace/report_merged.md")
+    assert out.status == "error"
+    # 普通章节写入不受影响
+    ok = await _write(mw, "write_file", f"chapters/{NEW_CH}")
+    assert ok.status != "error"
