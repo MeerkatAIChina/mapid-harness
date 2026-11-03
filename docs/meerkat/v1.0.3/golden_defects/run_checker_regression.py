@@ -42,6 +42,7 @@ CHECKER_TO_DEFECTS: dict[str, list[str]] = {
     "citation_orphan": ["GD-24"],
     "citation_ledger_ref": ["GD-25"],
     "placeholder_scan": ["GD-21"],
+    "intra_chapter_redundancy": ["GD-27"],
 }
 
 DUP_PARA = "本段为逐字重复测试段落：双碳政策推动照明行业能效升级，节能改造工程加速落地。（注入用重复段）"

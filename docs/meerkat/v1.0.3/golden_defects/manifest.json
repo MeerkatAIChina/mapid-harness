@@ -233,6 +233,16 @@
       "hint": "placeholder_scan 应命中",
       "snippet": "全年全社会用电量约XX亿千瓦时，照明用电占比约 13%。",
       "file": "text_injectable/GD-21_占位符泄漏.md"
+    },
+    {
+      "id": "GD-27",
+      "title": "同章反复：同主体同数值组复述",
+      "class": "注水",
+      "detector": "code",
+      "evidence": "对标实证同章注水型（用户裁定口径）",
+      "hint": "intra_chapter_redundancy 应命中",
+      "snippet": "公牛集团 2024 年营收 168.6 亿元，毛利率 43.25%，新能源与全屋智能业务增长迅速，渠道优势显著。\n\n从财务表现看，公牛集团营收 168.6 亿元、毛利率 43.25% 的水平，说明其电工龙头地位依然稳固。",
+      "file": "text_injectable/GD-27_同章反复.md"
     }
   ],
   "process_checklist": [

@@ -1042,6 +1042,82 @@ def check_placeholder_scan(workspace: Path) -> list[Finding]:
     return findings
 
 
+# ---------------------------------------------------------------------------
+# 12. 同章反复（设计文档_R4 §5.3，GD-27）
+#
+# 只查同章（用户裁定：跨章换措辞复用 = 正常笔法）。逐字段落/行重复已由
+# degeneration 覆盖，本检查器专查非逐字的「同案例复述」：相同主体 +
+# 相同精确数值组的段落对。语义级同义反复不做（R4 观察项）。
+# ---------------------------------------------------------------------------
+
+_REDUNDANCY_MIN_NUMBERS = 2
+_REDUNDANCY_MIN_PARA_CHARS = 30
+_ENTITY_RUN_RE = re.compile(r"[一-鿿]{4,}")
+# 通用短语不算主体（防误报）
+_ENTITY_STOPLIST = {
+    "数据来源", "本章参考", "参考资料", "参考文献", "同比增长", "数据显示",
+    "由此可见", "总体来看", "值得注意的是", "进一步分析",
+}
+
+
+def _para_numbers(line: str) -> frozenset[str]:
+    return frozenset(PRECISE_VALUE_RE.findall(line))
+
+
+def _entity_runs(line: str) -> list[str]:
+    return [r for r in _ENTITY_RUN_RE.findall(line) if r not in _ENTITY_STOPLIST]
+
+
+def _shares_entity(a: str, b: str, runs_a: list[str], runs_b: list[str]) -> bool:
+    for ra in runs_a:
+        if ra in b:
+            return True
+    for rb in runs_b:
+        if rb in a:
+            return True
+    return False
+
+
+def check_intra_chapter_redundancy(workspace: Path) -> list[Finding]:
+    """GD-27：同章内同主体+同数值组的非逐字段落对（注水复述）→ medium。"""
+    findings: list[Finding] = []
+    for _, path in _chapter_files(workspace):
+        paras: list[tuple[int, str, frozenset[str], list[str]]] = []
+        for i, line in enumerate(_read(path).splitlines()):
+            stripped = line.strip()
+            if (
+                len(stripped) < _REDUNDANCY_MIN_PARA_CHARS
+                or stripped.startswith("#")
+                or _is_table_line(stripped)
+                or _is_separator_row(stripped)
+            ):
+                continue
+            nums = _para_numbers(stripped)
+            if len(nums) < _REDUNDANCY_MIN_NUMBERS:
+                continue
+            paras.append((i, stripped, nums, _entity_runs(stripped)))
+        reported: set[tuple[int, int]] = set()
+        for x in range(len(paras)):
+            for y in range(x + 1, len(paras)):
+                ia, ta, na, ra = paras[x]
+                ib, tb, nb, rb = paras[y]
+                if na != nb or (ia, ib) in reported:
+                    continue
+                if _shares_entity(ta, tb, ra, rb):
+                    reported.add((ia, ib))
+                    findings.append(
+                        _finding(
+                            "intra_chapter_redundancy",
+                            SEVERITY_MEDIUM,
+                            _rel(workspace, path),
+                            ib + 1,
+                            f"同章反复：行 {ia + 1} 与行 {ib + 1} 同主体同数值组复述（GD-27）",
+                            tb[:80],
+                        )
+                    )
+    return findings
+
+
 CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "degeneration": check_degeneration,
     "word_count": check_word_count,
@@ -1056,6 +1132,7 @@ CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "citation_orphan": check_citation_orphan,
     "citation_ledger_ref": check_citation_ledger_ref,
     "placeholder_scan": check_placeholder_scan,
+    "intra_chapter_redundancy": check_intra_chapter_redundancy,
 }
 
 

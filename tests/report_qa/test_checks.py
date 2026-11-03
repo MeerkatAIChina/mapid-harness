@@ -743,3 +743,32 @@ def test_placeholder_scan_flags_todo_words(tmp_path: Path) -> None:
 def test_placeholder_scan_clean_text(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, chapters={"03_欧普.md": "营收 83.02 亿元，口径清晰。\n" + BODY_600})
     assert checks.check_placeholder_scan(ws) == []
+
+# ---------------------------------------------------------------------------
+# 12. 同章反复（设计文档_R4 §5.3，GD-27）
+# ---------------------------------------------------------------------------
+
+PARA_A = "公牛集团 2024 年营收 168.6 亿元，毛利率 43.25%，新能源与全屋智能业务增长迅速，渠道优势显著。"
+PARA_B = "从财务表现看，公牛集团营收 168.6 亿元、毛利率 43.25% 的水平，说明其电工龙头地位依然稳固。"
+PARA_C = "佛山照明 2024 年营收 90.48 亿元，毛利率 18.6%，与公牛集团不在同一量级。"
+
+
+def test_intra_chapter_flags_same_case_same_numbers(tmp_path: Path) -> None:
+    # 非逐字、同主体+同数值组的复述段落对 → medium
+    ch = "# 05 竞品\n\n" + PARA_A + "\n\n" + BODY_600 + "\n\n" + PARA_B + "\n"
+    ws = make_ws(tmp_path, chapters={"05_竞品.md": ch})
+    findings = checks.check_intra_chapter_redundancy(ws)
+    assert any(f["check"] == "intra_chapter_redundancy" and f["severity"] == "medium" for f in findings)
+
+
+def test_intra_chapter_clean_distinct_numbers(tmp_path: Path) -> None:
+    # 同主体但数值不同 = 正常多角度论述，不报
+    ch = "# 05 竞品\n\n" + PARA_A + "\n\n" + BODY_600 + "\n\n" + PARA_C + "\n"
+    ws = make_ws(tmp_path, chapters={"05_竞品.md": ch})
+    assert checks.check_intra_chapter_redundancy(ws) == []
+
+
+def test_intra_chapter_ignores_cross_chapter(tmp_path: Path) -> None:
+    # 跨章复用合法（用户裁定）：同段落出现在两章 → 本检查器不报
+    ws = make_ws(tmp_path, chapters={"01_甲.md": PARA_A + "\n", "02_乙.md": PARA_A + "\n"})
+    assert checks.check_intra_chapter_redundancy(ws) == []
