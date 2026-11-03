@@ -223,6 +223,16 @@
       "hint": "citation_ledger_ref 应命中（伪造台账 ref 列已启用但无 55）",
       "snippet": "本段引用编号[55]来支撑上述判断。",
       "file": "text_injectable/GD-25_未注册编号.md"
+    },
+    {
+      "id": "GD-21",
+      "title": "占位符泄漏：正文出现「XX 亿」类占位符",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "R3 实证漏网 2 处",
+      "hint": "placeholder_scan 应命中",
+      "snippet": "全年全社会用电量约XX亿千瓦时，照明用电占比约 13%。",
+      "file": "text_injectable/GD-21_占位符泄漏.md"
     }
   ],
   "process_checklist": [

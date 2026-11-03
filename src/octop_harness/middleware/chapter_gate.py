@@ -45,6 +45,7 @@ CHAPTER_CHECKERS = (
     "citation_dangling",
     "citation_orphan",
     "citation_ledger_ref",
+    "placeholder_scan",
 )
 # merge 终闸：四检查器 + 数值一致性（M1 修正后）+ 结构
 MERGE_CHECKERS = CHAPTER_CHECKERS + ("numeric_consistency", "structure")

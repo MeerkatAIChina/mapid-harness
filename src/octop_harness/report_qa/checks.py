@@ -1015,6 +1015,33 @@ def check_citation_ledger_ref(workspace: Path) -> list[Finding]:
     return findings
 
 
+# ---------------------------------------------------------------------------
+# 11. 占位符扫描（设计文档_R4 §5.2，GD-21）
+# ---------------------------------------------------------------------------
+
+_PLACEHOLDER_RE = re.compile(r"XX[亿万百千个%]?|待补充|待填写|此处省略|▢")
+
+
+def check_placeholder_scan(workspace: Path) -> list[Finding]:
+    """GD-21：正文出现「XX 亿」「待补充」类占位符 → high。"""
+    findings: list[Finding] = []
+    for _, path in _chapter_files(workspace):
+        for i, line in enumerate(_read(path).splitlines()):
+            m = _PLACEHOLDER_RE.search(line)
+            if m:
+                findings.append(
+                    _finding(
+                        "placeholder_scan",
+                        SEVERITY_HIGH,
+                        _rel(workspace, path),
+                        i + 1,
+                        f"占位符泄漏：{m.group(0)!r}（GD-21）",
+                        line.strip(),
+                    )
+                )
+    return findings
+
+
 CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "degeneration": check_degeneration,
     "word_count": check_word_count,
@@ -1028,6 +1055,7 @@ CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "citation_dangling": check_citation_dangling,
     "citation_orphan": check_citation_orphan,
     "citation_ledger_ref": check_citation_ledger_ref,
+    "placeholder_scan": check_placeholder_scan,
 }
 
 

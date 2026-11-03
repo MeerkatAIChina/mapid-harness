@@ -719,3 +719,27 @@ def test_figure_companion_accepts_bracket_ref(tmp_path: Path) -> None:
     ])
     ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
     assert checks.check_figure_companion(ws) == []
+
+# ---------------------------------------------------------------------------
+# 11. 占位符扫描（设计文档_R4 §5.2，GD-21）
+# ---------------------------------------------------------------------------
+
+
+def test_placeholder_scan_flags_xx(tmp_path: Path) -> None:
+    body = "全年装机约XX亿千瓦时，同比增长。\n" + BODY_600
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": body})
+    findings = checks.check_placeholder_scan(ws)
+    assert any(f["check"] == "placeholder_scan" and f["severity"] == "high" for f in findings)
+
+
+def test_placeholder_scan_flags_todo_words(tmp_path: Path) -> None:
+    for i, word in enumerate(("待补充", "待填写", "此处省略", "▢")):
+        sub = tmp_path / str(i)
+        sub.mkdir()
+        ws = make_ws(sub, chapters={"03_欧普.md": f"本节数据{word}。\n" + BODY_600})
+        assert checks.check_placeholder_scan(ws), f"未命中占位符：{word}"
+
+
+def test_placeholder_scan_clean_text(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, chapters={"03_欧普.md": "营收 83.02 亿元，口径清晰。\n" + BODY_600})
+    assert checks.check_placeholder_scan(ws) == []
