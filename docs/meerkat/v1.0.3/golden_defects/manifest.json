@@ -193,6 +193,36 @@
       "detector": "code",
       "target": "结论",
       "snippet": "中国照明行业未来三年增速预计为 88%~99%（见第 2 章）。"
+    },
+    {
+      "id": "GD-23",
+      "title": "悬空引用：正文 [n] 章末无条目",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "R4 新增（设计文档_R4 §2.2）",
+      "hint": "citation_dangling 应命中",
+      "snippet": "本段引用编号[77]来支撑上述判断。",
+      "file": "text_injectable/GD-23_悬空引用.md"
+    },
+    {
+      "id": "GD-24",
+      "title": "孤儿条目：章末条目正文无人引",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "R4 新增（设计文档_R4 §2.2）",
+      "hint": "citation_orphan 应命中",
+      "snippet": "## 本章参考资料\n\n[88] 某机构《照明行业年度观察》，2024，https://example.com/report",
+      "file": "text_injectable/GD-24_孤儿条目.md"
+    },
+    {
+      "id": "GD-25",
+      "title": "未注册编号：正文 [n] 未在台账 ref 列登记",
+      "class": "硬约束遗忘",
+      "detector": "code",
+      "evidence": "R4 新增（设计文档_R4 §2.1）",
+      "hint": "citation_ledger_ref 应命中（伪造台账 ref 列已启用但无 55）",
+      "snippet": "本段引用编号[55]来支撑上述判断。",
+      "file": "text_injectable/GD-25_未注册编号.md"
     }
   ],
   "process_checklist": [
