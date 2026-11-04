@@ -784,3 +784,56 @@ async def test_exit_granted_does_not_skip_verification(tmp_path: Path) -> None:
     assert st.exit_granted is True  # 出口成立 ≠ 真实性工序豁免
     assert st.verified == "pending"
     assert mw._merge_rounds == 0
+
+
+# ---------------------------------------------------------------------------
+# R4 终审修复 1c：查无实证必须降级/标注 [待核实] 并复测后才放行
+# ---------------------------------------------------------------------------
+
+UNVERIFIABLE_CH = "08_并购.md"
+ACQ_SENTENCE = "欧普照明于 2019 年完成对某照明企业的重大收购[1]。"
+ACQ_MARKED = "欧普照明于 2019 年完成对某照明企业的重大收购[1][待核实]。"
+CHAPTER_ACQ = ACQ_SENTENCE + "\n" + CLEAN_LONG + _REF_SECTION
+CHAPTER_ACQ_MARKED = ACQ_MARKED + "\n" + CLEAN_LONG + _REF_SECTION
+
+
+class _UnverifiableModel:
+    """三角色桩：抽取空（走关键词通路）；判定恒 unverifiable；审校空编辑。"""
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        system = str(kwargs.get("system") or "")
+        if "审校" in system:
+            return '{"edits": [], "doubts": []}'
+        if "抽取" in system:
+            return '{"assertions": []}'
+        return json.dumps(
+            {"verdict": "unverifiable", "reason": "公开检索无相关信息"}, ensure_ascii=False
+        )
+
+
+async def test_unverifiable_blocks_merge_until_marked(tmp_path: Path) -> None:
+    """终审复现：查无实证仅进 verify_notes、verified=passed，补审校后四次 merge 均成功。
+    修复后：notes 未清零 merge 硬失败；标注 [待核实] 并复测重核后放行。"""
+    ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ})
+    mw = ChapterGateMiddleware(
+        ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok
+    )
+    mw._verify_backoff = 0
+    out = await _stats(mw, f"chapters/{UNVERIFIABLE_CH}")
+    st = mw._chapters[UNVERIFIABLE_CH]
+    assert st.verified == "passed"
+    assert ACQ_SENTENCE in st.verify_notes
+    assert "待核实" in out.content  # 附言指引仍在
+
+    for _ in range(2):  # 硬失败可重复，不消耗 merge 额度
+        blocked = await _merge_call(mw)
+        assert blocked.status == "error"
+        assert "查无实证" in blocked.content
+    assert mw._merge_rounds == 0
+
+    # 模型按指引标注 [待核实]（编辑章 → 状态清零 → merge 前补核重验 → 已标注断言记为已降级）
+    (ws / "chapters" / UNVERIFIABLE_CH).write_text(CHAPTER_ACQ_MARKED, encoding="utf-8")
+    await _write(mw, "edit_file", f"chapters/{UNVERIFIABLE_CH}")
+    ok = await _merge_call(mw)
+    assert ok.status != "error"
+    assert mw._chapters[UNVERIFIABLE_CH].verify_notes == []

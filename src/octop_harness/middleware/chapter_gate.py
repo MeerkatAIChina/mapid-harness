@@ -44,6 +44,7 @@ from octop_harness.middleware.verification import (
     with_retry,
 )
 from octop_harness.report_qa.checks import CHECKERS
+from octop_harness.report_qa.citations import PENDING_MARK, strip_reference_section
 from octop_harness.report_qa.outline import parse_exit_applications, parse_word_count_floors
 
 logger = logging.getLogger(__name__)
@@ -613,14 +614,15 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         st.verify_notes = []
         try:
             chapter_text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
+            body = strip_reference_section(chapter_text)  # 参考资料节不是断言，不参与抽取/抽检
             assertions = await with_retry(
                 lambda: extract_loadbearing_assertions(
-                    chapter_text, self._ledger_text(), self._model_access
+                    body, self._ledger_text(), self._model_access
                 ),
                 backoff_s=self._verify_backoff,
             )
             assertions = self._read_doubts(chapter) + assertions  # 审校回流疑点优先核验
-            assertions += sample_numeric_claims(chapter_text, assertions, rng=self._rng)
+            assertions += sample_numeric_claims(body, assertions, rng=self._rng)
             verdicts = [
                 await with_retry(
                     lambda a=a: verify_assertion(a, self._model_access, self._search, self._fetch),
@@ -675,7 +677,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     }
                 )
             elif v.result == "unverifiable":
-                st.verify_notes.append(a)
+                # 已标 [待核实] = 已按降级处置（终审修复 1c），不计入待处理
+                if PENDING_MARK not in a:
+                    st.verify_notes.append(a)
         st.verified = "failed" if st.verify_findings else "passed"
 
     async def _verify_touchpoint(
@@ -913,6 +917,11 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         )
                     if not st.reviewed:
                         hard.append(f"第 {num} 章未审校")
+                    if st.verify_notes:
+                        hard.append(
+                            f"第 {num} 章 {len(st.verify_notes)} 条断言查无实证未处理"
+                            "（降级表述或标注 [待核实] 后复测）"
+                        )
                 for ch, reason in self._exit_rejected.items():
                     hard.append(f"第 {ch.split('_')[0]} 章出口举证被驳回：{reason}")
                 if hard:
