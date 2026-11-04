@@ -290,3 +290,45 @@ async def test_default_search_error_still_infra(monkeypatch: pytest.MonkeyPatch)
     )
     with pytest.raises(RuntimeError):
         await chapter_gate._default_search("某查询")
+
+# ---------------------------------------------------------------------------
+# 断言抽取：重复循环防护（round-6 实战：DeepSeek 断言枚举 ×57 复制撞上限）
+# ---------------------------------------------------------------------------
+
+
+class _RawModel:
+    """返回原始字符串的抽取模型桩（记录调用参数）。"""
+
+    def __init__(self, raw: str) -> None:
+        self._raw = raw
+        self.kwargs: dict = {}
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        self.kwargs.update(kwargs)
+        return self._raw
+
+
+async def test_extraction_salvages_repetitive_truncated_output() -> None:
+    """模型陷重复循环+截断：挽救式解析去重救回真断言，不再按 infra 失败处理。"""
+    uniq = [f"断言{i}：内容{i}" for i in range(3)]
+    # 模拟事故现场：JSON 开头正常，同一批断言复制 N 遍，最后半截截断
+    body = "{\"assertions\": [" + ",".join(f'\"{a}\"' for a in uniq * 20) + ", \"半截"
+    model = _RawModel(body)
+    assertions = await extract_loadbearing_assertions("中性文本。", LEDGER_PLAIN, model_access=model)
+    assert assertions.count("断言0：内容0") == 1
+    assert sorted(a for a in assertions if a.startswith("断言")) == uniq
+
+
+async def test_extraction_passes_max_tokens_cap() -> None:
+    """抽取调用必须带 max_tokens 上限：重复循环最多烧封顶值，不再烧满窗口。"""
+    model = _RawModel('{"assertions": []}')
+    await extract_loadbearing_assertions("中性文本。", LEDGER_PLAIN, model_access=model)
+    cap = model.kwargs.get("max_tokens")
+    assert cap is not None and cap <= 4000
+
+
+async def test_extraction_unsalvageable_still_raises() -> None:
+    """输出完全无可用断言 → 仍抛错（不掩盖真故障）。"""
+    model = _RawModel("我完全不知道怎么回答这个问题")
+    with pytest.raises(Exception):
+        await extract_loadbearing_assertions("中性文本。", LEDGER_PLAIN, model_access=model)

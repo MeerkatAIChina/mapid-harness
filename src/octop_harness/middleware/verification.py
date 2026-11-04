@@ -31,13 +31,14 @@ _SENT_SPLIT_RE = re.compile(r"(?<=[。！？!?\n])")
 _NUM_CLAIM_RE = re.compile(r"\d")
 
 DEFAULT_TIMEOUT_S = 120.0
+EXTRACT_MAX_TOKENS = 2000  # 抽取输出封顶：正常一章承重断言仅几百 token（防 temp=0 重复循环烧满窗口）
 MAX_RETRIES = 2  # 有限重试（指数退避 1s/2s）
 SAMPLE_PER_CHAPTER = 3  # 一般数值抽检上限（设计裁量）
 
 _EXTRACT_SYSTEM = (
     "你是事实核验助手。从给定报告章节文本中抽取「承重断言」：一旦为假则整章结论崩塌的事实性断言。"
     "分类：上市/挂牌状态、并购/收购事件、实控人/控股股东、主体名称、关键年份、投资额。"
-    "只抽取文本中实际出现的断言，不补全、不推测。"
+    "只抽取文本中实际出现的断言，不补全、不推测。最多 20 条，每条不超过 50 字。"
     '输出 JSON：{"assertions": ["断言1", "断言2"]}，没有则输出空数组。'
 )
 
@@ -69,6 +70,19 @@ def _parse_json(text: str) -> Any:
     if start < 0:
         raise ValueError(f"模型输出无 JSON：{text[:120]}")
     return json.loads(cleaned[start:])
+
+
+_SALVAGE_STR_RE = re.compile(r'"([^"\n]{4,})"')
+
+
+def _salvage_assertions(raw: str) -> list[str]:
+    """挽救式解析：严格 JSON 失败时，从残骸里抽 quoted 字符串（跳过 schema 键名）。
+
+    round-6 实战：temp=0 下模型枚举断言陷重复循环并撞长度截断，完整 JSON
+    必死；但残骸里真断言齐全，抽出去重后即可用（本函数出口下游本就有
+    去重保序）。一条都抽不到则返回空，由调用方按 infra 失败抛错。
+    """
+    return [s for s in _SALVAGE_STR_RE.findall(raw) if s != "assertions"]
 
 
 # ---------------------------------------------------------------------------
@@ -116,9 +130,20 @@ async def extract_loadbearing_assertions(
             response_format="json",
             temperature=0,
             timeout_s=DEFAULT_TIMEOUT_S,
+            max_tokens=EXTRACT_MAX_TOKENS,
         )
-        data = _parse_json(raw)
-        found += [str(a) for a in data.get("assertions", [])]
+        try:
+            data = _parse_json(raw)
+            found += [str(a) for a in data.get("assertions", [])]
+        except ValueError:
+            salvaged = _salvage_assertions(raw)
+            if not salvaged:
+                raise
+            logger.warning(
+                "verification: 抽取输出非完整 JSON，挽救式解析救回 %d 条（去重前）",
+                len(salvaged),
+            )
+            found += salvaged
     seen: set[str] = set()
     return [a for a in found if not (a in seen or seen.add(a))]
 
