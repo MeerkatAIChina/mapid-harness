@@ -1,0 +1,29 @@
+{
+ "chapters": {
+  "01_研究背景、方法与数据来源说明.md": {
+   "status": "clean",
+   "verified": "pending",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "02_中国及全球照明行业全景.md": {
+   "status": "unevaluated",
+   "verified": "unchecked",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  }
+ },
+ "merge_rounds": 0,
+ "infra_streak": 1,
+ "verify_aborted": false
+}

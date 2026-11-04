@@ -23,6 +23,8 @@ from typing import Any
 from langchain.agents.middleware import ModelRetryMiddleware
 from langchain.agents.middleware._retry import default_retry_on
 
+from octop_harness.middleware.empty_guard import EmptyCompletionError
+
 logger = logging.getLogger(__name__)
 
 # --- 默认重试预算（与外层 Octop ModelRetryMiddleware 协调：内层单周期约 4 分钟，
@@ -49,8 +51,12 @@ class PatientRetrySettings:
 
 
 def _logging_retry_on(exc: Exception) -> bool:
-    """每次模型调用失败的记录钩子：写日志后按默认规则判定是否重试。"""
-    retryable = default_retry_on(exc)
+    """每次模型调用失败的记录钩子：写日志后按默认规则判定是否重试。
+
+    空完成（empty_guard 抛出的 ``EmptyCompletionError``）不在 langchain
+    默认可重试集合内，显式并入——瞬时空响应由本层吸收，耗尽仍抛给外层。
+    """
+    retryable = default_retry_on(exc) or isinstance(exc, EmptyCompletionError)
     logger.warning(
         "patient_retry: model call failed (%s: %s), retryable=%s",
         type(exc).__name__,
