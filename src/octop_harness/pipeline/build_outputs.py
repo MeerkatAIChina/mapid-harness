@@ -11,20 +11,26 @@ import time
 from pathlib import Path
 
 from octop_harness.pipeline.report_renderer import convert
+from octop_harness.report_qa.citations import parse_ledger_refs
 
 _MIN_BYTES = 10_000
 
 
 def build_outputs(md_path: Path, out_dir: Path, base_name: str) -> dict[str, dict]:
     """从同一份 md 生成三格式；任一格式异常小即 RuntimeError。"""
-    md = Path(md_path).read_text(encoding="utf-8")
+    md_path = Path(md_path)
+    md = md_path.read_text(encoding="utf-8")
+    ledger = md_path.parent / "data_ledger.md"
+    ledger_refs = (
+        parse_ledger_refs(ledger.read_text(encoding="utf-8")) if ledger.is_file() else None
+    )
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     results: dict[str, dict] = {}
     for fmt in ("docx", "html", "pdf"):
         out = out_dir / f"{base_name}.{fmt}"
         t0 = time.time()
-        convert(fmt, md, str(out))
+        convert(fmt, md, str(out), ledger_refs=ledger_refs)
         size = out.stat().st_size
         if size < _MIN_BYTES:
             raise RuntimeError(f"{fmt} 输出异常小: {size}")

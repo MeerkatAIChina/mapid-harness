@@ -83,3 +83,31 @@ def test_validate_report_scans_docx_forbidden_patterns(tmp_path: Path):
     build_outputs(md_path, tmp_path, "report")
     failures = validate_report(tmp_path, "report")
     assert any(f.startswith("Word") and "生成残留" in f for f in failures)
+
+
+def test_build_rejects_chart_missing_contract(tmp_path: Path):
+    """终审复现：缺 title/rationale 的图表可进三格式构建（修复后构建必须失败）。"""
+    from octop_harness.pipeline.build_outputs import build_outputs
+
+    bad = SAMPLE_MD.replace(
+        '{"type": "bar", "title": "欧普份额领先", "rationale": "支撑龙头判断", ',
+        '{"type": "bar", ',
+    )
+    md_path = tmp_path / "in.md"
+    md_path.write_text(bad, encoding="utf-8")
+    with pytest.raises(ValueError, match="图表"):
+        build_outputs(md_path, tmp_path, "report")
+
+
+def test_build_rejects_chart_refs_not_in_ledger(tmp_path: Path):
+    """构建点在 workspace 内（旁边有 data_ledger.md）→ refs 逐条核对已登记编号。"""
+    from octop_harness.pipeline.build_outputs import build_outputs
+
+    (tmp_path / "data_ledger.md").write_text(
+        "| 指标 | 数值 | ref |\n|---|---|---|\n| 营收 | 70.96 | 9 |\n",
+        encoding="utf-8",
+    )
+    md_path = tmp_path / "in.md"
+    md_path.write_text(SAMPLE_MD, encoding="utf-8")
+    with pytest.raises(ValueError, match="未登记"):
+        build_outputs(md_path, tmp_path, "report")

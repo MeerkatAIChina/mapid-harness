@@ -78,3 +78,29 @@ def test_graph_rejected_without_coordinates():
         "links": [{"source": "a", "target": "b"}],
     }
     assert validate_chart(chart, {3}) != []
+
+
+def test_heatmap_rejected_without_heat_data():
+    """缺 heat_data 的热力图能过校验，但 HTML 渲染对空列表求 min/max 崩溃（终审复现）。"""
+    chart = {
+        "type": "heatmap",
+        "title": "t",
+        "rationale": "r",
+        "refs": [3],
+        "categories": ["a", "b"],
+        "series": [{"name": "s", "data": [1, 2]}],
+    }
+    assert any("heat_data" in e for e in validate_chart(chart, {3}))
+
+
+def test_heatmap_accepted_with_heat_data():
+    chart = {
+        "type": "heatmap",
+        "title": "t",
+        "rationale": "r",
+        "refs": [3],
+        "categories": ["a", "b"],
+        "series": [{"name": "s", "data": [1, 2]}],
+        "heat_data": [[0, 0, 1], [1, 0, 2]],
+    }
+    assert validate_chart(chart, {3}) == []

@@ -9,6 +9,7 @@ from pathlib import Path
 import os as _os
 
 _BRAND = _os.environ.get("LONG_REPORT_BRAND", "Meerkat AI · 专业报告")
+from octop_harness.pipeline.charts import validate_chart
 from octop_harness.pipeline.doc_tools import (_parse_blocks, _extract_title, _strip_inline, _inline_to_html,
                        _escape_html, _parse_table_rows, _chart_to_png, _math_assets,
                        convert as legacy_convert)
@@ -330,7 +331,15 @@ def md_to_docx(md_text, output_path):
     return output_path
 
 
-def convert(fmt, md_text, output_path):
+def convert(fmt, md_text, output_path, ledger_refs=None):
+    # 图表契约闸门（终审修复 2b）：任一 chart 块不过 validate_chart 即拒建，
+    # 缺 title/rationale/refs 的图表不得进入三格式产物。
+    errors: list[str] = []
+    for i, (typ, payload) in enumerate(_parse_blocks(md_text), start=1):
+        if typ == "chart":
+            errors.extend(f"第 {i} 块：{e}" for e in validate_chart(payload, ledger_refs))
+    if errors:
+        raise ValueError("图表契约校验未通过：\n" + "\n".join(errors))
     if fmt == "html":
         return md_to_html(md_text, output_path)
     if fmt == "docx":

@@ -58,6 +58,17 @@ def _validate_structure(chart: dict) -> list[str]:
         errors.append("流程图至少需要两个阶段")
     if ctype == "radar" and len(cats or []) < 3:
         errors.append("雷达图至少需要三个维度")
+    if ctype == "heatmap":
+        # heat_data 是渲染必需（report_renderer 对其求 min/max），series 不能替代
+        heat = chart.get("heat_data")
+        if not isinstance(heat, list) or not heat or any(
+            not isinstance(p, list)
+            or len(p) < 3
+            or not isinstance(p[2], (int, float))
+            or isinstance(p[2], bool)
+            for p in heat
+        ):
+            errors.append("热力图缺少 heat_data（[x, y, 值] 三元组非空数组）")
     if ctype == "graph":
         nodes = chart.get("nodes")
         links = chart.get("links")
