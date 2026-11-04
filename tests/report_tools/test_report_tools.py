@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from octop_harness import report_tools
@@ -172,7 +174,7 @@ def test_register_exposes_both_tools(plugin_tools):
     assert set(plugin_tools) == {"merge_chapters", "report_stats"}
 
 
-def test_plugin_merge_with_absolute_paths(plugin_tools, chapters_dir, tmp_path):
+def test_plugin_merge_with_absolute_paths(plugin_tools, stub_chain, chapters_dir, tmp_path):
     _write(chapters_dir / "01.md", "章节内容")
     out = tmp_path / "merged.md"
     text = plugin_tools["merge_chapters"](str(chapters_dir), str(out))
@@ -197,3 +199,119 @@ def test_plugin_report_stats_with_absolute_path(plugin_tools, tmp_path):
 def test_plugin_merge_error_returns_string_not_raise(plugin_tools, tmp_path):
     text = plugin_tools["merge_chapters"](str(tmp_path / "nope"), str(tmp_path / "o.md"))
     assert text.startswith("Error: ")
+# --- 交付链（merge 前清理 + merge 后三格式构建/验收，设计 §5.1/§6.1） -----------
+
+
+@pytest.fixture()
+def stub_chain(monkeypatch):
+    """默认桩掉三格式构建与验收（构建/验收本身由 pipeline 测试覆盖）。"""
+    calls: dict = {}
+
+    def fake(merged_path):
+        calls["merged_path"] = merged_path
+        return []
+
+    monkeypatch.setattr(report_tools, "_run_delivery_chain", fake)
+    return calls
+
+
+def test_merge_cleans_residue_before_merging(plugin_tools, stub_chain, chapters_dir, tmp_path):
+    _write(
+        chapters_dir / "01.md",
+        "第一段正常内容。\n原文描述有误，建议改为：增长率 5%。\n第二段正常内容。",
+    )
+    out = tmp_path / "report_merged.md"
+    text = plugin_tools["merge_chapters"](str(chapters_dir), str(out))
+    assert text.startswith("合并完成。")
+    chapter = (chapters_dir / "01.md").read_text(encoding="utf-8")
+    assert "原文描述有误" not in chapter
+    assert "第二段正常内容" in chapter
+    merged = out.read_text(encoding="utf-8")
+    assert "原文描述有误" not in merged
+
+
+def test_merge_invokes_delivery_chain_with_merged_path(
+    plugin_tools, stub_chain, chapters_dir, tmp_path
+):
+    _write(chapters_dir / "01.md", "内容")
+    out = tmp_path / "report_merged.md"
+    plugin_tools["merge_chapters"](str(chapters_dir), str(out))
+    assert stub_chain["merged_path"] == out.resolve()
+
+
+def test_merge_delivery_chain_failure_returns_error(
+    plugin_tools, monkeypatch, chapters_dir, tmp_path
+):
+    monkeypatch.setattr(
+        report_tools, "_run_delivery_chain", lambda p: ["PDF 文本未检查：pdftotext 不可用"]
+    )
+    _write(chapters_dir / "01.md", "内容")
+    out = tmp_path / "report_merged.md"
+    text = plugin_tools["merge_chapters"](str(chapters_dir), str(out))
+    assert out.is_file()  # 合并本体已完成
+    assert text.startswith("Error: 交付链未通过")
+    assert "PDF 文本未检查" in text
+
+
+def test_delivery_chain_builds_then_validates(monkeypatch, tmp_path):
+    merged = tmp_path / "report_merged.md"
+    merged.write_text("# 报告\n内容", encoding="utf-8")
+    import octop_harness.pipeline.build_outputs as bo
+    import octop_harness.pipeline.validate_report as vr
+
+    calls: dict = {}
+
+    def fake_build(md_path, out_dir, base_name):
+        calls.update(md=md_path, out_dir=out_dir, base=base_name)
+        return {"docx": {"bytes": 20_000}}
+
+    def fake_validate(output_dir, base_name="report"):
+        calls.update(v_out=output_dir, v_base=base_name)
+        return []
+
+    monkeypatch.setattr(bo, "build_outputs", fake_build)
+    monkeypatch.setattr(vr, "validate_report", fake_validate)
+
+    assert report_tools._run_delivery_chain(merged) == []
+    assert calls["md"] == merged
+    assert calls["out_dir"] == tmp_path / "rendered"
+    assert calls["base"] == "report_merged"
+    assert calls["v_out"] == tmp_path / "rendered"
+    assert calls["v_base"] == "report_merged"
+
+
+def test_delivery_chain_build_error_fails_closed(monkeypatch, tmp_path):
+    merged = tmp_path / "report_merged.md"
+    merged.write_text("内容", encoding="utf-8")
+    import octop_harness.pipeline.build_outputs as bo
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("docx 输出异常小: 123")
+
+    monkeypatch.setattr(bo, "build_outputs", boom)
+    failures = report_tools._run_delivery_chain(merged)
+    assert failures
+    assert "docx 输出异常小" in failures[0]
+
+
+def test_delivery_chain_validate_failures_returned(monkeypatch, tmp_path):
+    merged = tmp_path / "report_merged.md"
+    merged.write_text("内容", encoding="utf-8")
+    import octop_harness.pipeline.build_outputs as bo
+    import octop_harness.pipeline.validate_report as vr
+
+    monkeypatch.setattr(bo, "build_outputs", lambda *a, **k: {"docx": {}})
+    monkeypatch.setattr(
+        vr, "validate_report", lambda *a, **k: ["HTML 可见文本 存在占位符：XX 亿"]
+    )
+    assert report_tools._run_delivery_chain(merged) == ["HTML 可见文本 存在占位符：XX 亿"]
+
+
+def test_delivery_chain_missing_extras_fails_closed(monkeypatch, tmp_path):
+    merged = tmp_path / "report_merged.md"
+    merged.write_text("内容", encoding="utf-8")
+    # sys.modules 置 None → import 抛 ImportError，模拟宿主未装 pipeline extras
+    monkeypatch.setitem(sys.modules, "octop_harness.pipeline.build_outputs", None)
+    failures = report_tools._run_delivery_chain(merged)
+    assert failures
+    assert "依赖缺失" in failures[0]

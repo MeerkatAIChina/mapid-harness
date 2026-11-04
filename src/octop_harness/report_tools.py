@@ -24,6 +24,7 @@ CHAPTERS_DIR = "chapters"
 DEFAULT_OUTPUT_NAME = "report_merged.md"
 CHAPTER_MARKER = "<!-- ===== {name} ===== -->"
 VOLUME_TOLERANCE = 0.05  # 合并产物与章节总和的体量偏差阈值（基线 3.45× 膨胀护栏）
+DELIVERY_DIR_NAME = "rendered"  # 交付产物目录（workspace 下，与 round-4 产物约定一致）
 
 
 # --- 统计口径 ------------------------------------------------------------------
@@ -104,6 +105,46 @@ def merge_chapter_files(chapters_dir: Path, output: Path) -> dict[str, Any]:
     }
 
 
+# --- 交付链（设计 §5.1/§6.1：确定性工序，不进模型职责） --------------------------
+def _clean_chapters(chapters_dir: Path) -> int:
+    """逐章清理生成残留（merge 前自动跑），返回删除的残留行数。
+
+    只删 ``clean_report_markup.FORBIDDEN_PATTERNS`` 命中行（围栏内容不动）；
+    文件无命中不改写。UTF-8 strict，坏编码直接抛 ``UnicodeDecodeError``。
+    """
+    from octop_harness.pipeline.clean_report_markup import clean_text
+
+    removed = 0
+    for path in sorted(chapters_dir.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        cleaned, stats = clean_text(text)
+        if stats["removed"]:
+            path.write_text(cleaned, encoding="utf-8")
+            removed += stats["removed"]
+    return removed
+
+
+def _run_delivery_chain(merged_path: Path) -> list[str]:
+    """同源三格式构建 → 交付验收（设计 §6.1 收尾工序）。
+
+    产物落在 ``<merged 同级>/rendered/``，基名取合并文件 stem。返回失败清单
+    （空 = 通过）；依赖缺失、构建异常一律 fail-closed 记为失败——未检查 ≠ 通过。
+    """
+    try:
+        from octop_harness.pipeline.build_outputs import build_outputs
+        from octop_harness.pipeline.validate_report import validate_report
+    except ImportError as exc:
+        return [f"交付链依赖缺失（pipeline extras 未安装）：{exc}"]
+    merged_path = Path(merged_path)
+    out_dir = merged_path.parent / DELIVERY_DIR_NAME
+    base_name = merged_path.stem
+    try:
+        build_outputs(merged_path, out_dir, base_name)
+    except Exception as exc:  # 图表契约 ValueError / 体量 RuntimeError / IO 异常，全是交付失败
+        return [f"三格式构建失败：{exc}"]
+    return validate_report(out_dir, base_name)
+
+
 def stats_for_path(path: Path) -> dict[str, Any]:
     """统计单个 .md 文件或目录（顶层 *.md）的字数。"""
     if path.is_dir():
@@ -178,6 +219,8 @@ def register(ctx: PluginContext) -> None:
 
         每章前会插入章节标记；合并后自动做体量校验（合并产物非空白字符数 ≈
         章节总和 ±5%，异常即报错且不写文件）。禁止自写脚本合并，必须用这个工具。
+        合并前后自动执行交付链（merge 前清理生成残留 → 三格式构建 → 交付验收），
+        任一环未通过即返回 Error 与失败清单，修复后重新调用本工具即可。
 
         Args:
             chapters_dir: 章节目录（相对 workspace 根目录，默认 "chapters"）。
@@ -190,12 +233,22 @@ def register(ctx: PluginContext) -> None:
         if isinstance(dst, str):
             return dst
         try:
+            removed = _clean_chapters(src)
             result = merge_chapter_files(src, dst)
         except ValueError as exc:
             return f"Error: {exc}"
+        except UnicodeDecodeError as exc:
+            return f"Error: 章节文件不是合法 UTF-8（{exc}）"
         summary = _format_stats({"path": result["output"], "files": result["files"],
                                  "per_file": result["per_file"], "total": result["total"]})
-        return f"合并完成。\n{summary}"
+        failures = _run_delivery_chain(dst)
+        if failures:
+            detail = "\n".join(f"- {f}" for f in failures)
+            return (
+                "Error: 交付链未通过（合并本体已完成，修复下列问题后重新调用本工具即可）："
+                f"\n{detail}"
+            )
+        return f"合并完成。\n{summary}\n交付链：清理残留 {removed} 行；三格式构建与交付验收通过。"
 
     def report_stats(path: str = CHAPTERS_DIR) -> str:
         """统计报告字数（口径：非空白字符数 + 汉字数）。
