@@ -1211,7 +1211,10 @@ class HarnessAgent:
         if not spec:
             return None
         try:
-            return self._model_factory.get_for(spec)
+            # _init_graph 早于 bind_runtime（__init__ 顺序），工厂尚无绑定协议，
+            # 必须显式透传 get_protocol（ModelRouterMiddleware 同款），否则 get_for
+            # 抛 RuntimeError 走 fail-open，核验/审校工序被静默关闭。
+            return self._model_factory.get_for(spec, get_protocol=self._get_protocol)
         except Exception:
             logger.warning("chapter_gate: 核验模型通路建立失败（%s），核验/审校工序关闭", spec, exc_info=True)
             return None

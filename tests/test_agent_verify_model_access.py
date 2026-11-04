@@ -26,9 +26,11 @@ class _FactoryStub:
         self._access = access
         self._exc = exc
         self.calls: list[str] = []
+        self.kwargs: dict = {}
 
-    def get_for(self, spec: str):
+    def get_for(self, spec: str, **kwargs):
         self.calls.append(spec)
+        self.kwargs.update(kwargs)
         if self._exc is not None:
             raise self._exc
         return self._access
@@ -38,6 +40,7 @@ def _bare_agent(cfg_ref: str, factory: _FactoryStub) -> HarnessAgent:
     agent = HarnessAgent.__new__(HarnessAgent)
     agent._config = _CfgStub(cfg_ref)
     agent._model_factory = factory
+    agent._get_protocol = lambda name: f"proto:{name}"  # 桩：协议解析器
     return agent
 
 
@@ -48,6 +51,9 @@ def test_verify_model_access_falls_back_to_default_ref(monkeypatch):
     agent = _bare_agent("provider/main-model", factory)
     assert agent._verify_model_access() is access
     assert factory.calls == ["provider/main-model"]
+    # _init_graph 早于 bind_runtime：必须显式透传 get_protocol（ModelRouterMiddleware 同款），
+    # 否则真实工厂抛 RuntimeError 触发 fail-open，核验工序被静默关闭（2026-11-04 装配实证）。
+    assert callable(factory.kwargs.get("get_protocol"))
 
 
 def test_verify_model_access_env_spec_wins(monkeypatch):
