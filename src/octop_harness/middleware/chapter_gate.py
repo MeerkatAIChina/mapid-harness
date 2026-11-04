@@ -97,6 +97,8 @@ async def _default_search(query: str) -> list[dict[str, Any]]:
     raw = await searchfree_search.ainvoke({"query": query, "max_results": 5})
     if raw.startswith("Error:"):
         raise RuntimeError(raw)
+    if raw.strip() == "No results found.":
+        return []  # 正常无结果 ≠ infra（终审修复 3a）：走 unverifiable 路径
     data = json.loads(raw)
     return data if isinstance(data, list) else list(data.get("results", []))
 

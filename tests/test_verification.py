@@ -255,3 +255,38 @@ async def test_model_access_none_skips_verification(tmp_path: Path) -> None:
     assert "本章检查通过" in out.content
     assert gate._chapters[CH].verified == "unchecked"
     assert not (ws / "verification_log.jsonl").exists()
+
+
+# ---------------------------------------------------------------------------
+# R4 终审修复 3a：正常无结果 ≠ 检索故障
+# ---------------------------------------------------------------------------
+
+
+async def test_default_search_no_results_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """终审复现：searchfree 正常返回 No results found. 被 json.loads 当 infra 故障，
+    触发重试/pending/事故计数。修复后映射为空清单（→ unverifiable 路径）。"""
+    from octop_harness.middleware import chapter_gate
+
+    class _FakeTool:
+        async def ainvoke(self, args: dict) -> str:
+            return "No results found."
+
+    monkeypatch.setattr(
+        "octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool()
+    )
+    assert await chapter_gate._default_search("某查询") == []
+
+
+async def test_default_search_error_still_infra(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Error: 开头仍是检索故障（两类状态不混用）。"""
+    from octop_harness.middleware import chapter_gate
+
+    class _FakeTool:
+        async def ainvoke(self, args: dict) -> str:
+            return "Error: 上游 502"
+
+    monkeypatch.setattr(
+        "octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool()
+    )
+    with pytest.raises(RuntimeError):
+        await chapter_gate._default_search("某查询")
