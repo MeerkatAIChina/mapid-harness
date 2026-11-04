@@ -439,7 +439,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             return
         for ch in self._all_workspace_chapters():
             st = self._chapter_state(ch)
-            if st.reviewed or st.exit_granted:
+            if st.reviewed:
                 continue
             await self._review_chapter(ch)
 
@@ -560,6 +560,11 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             "severity": "medium",
             "message": f"字数不足：非空白字符 {actual} < outline 下限 {floor}",
         }
+
+    def _content_findings(self, chapter: str) -> list[dict[str, Any]]:
+        """内容 findings（剔除字数下限项）：字数不足不影响既有文本的真实性，
+        不作为跳过核验的理由（终审修复 1b：floor-only 章也必须可核验）。"""
+        return [f for f in self._evaluate_chapter(chapter) if f["check"] != "word_count_floor"]
 
     def _evaluate_chapter(self, chapter: str) -> list[dict[str, Any]]:
         rel = f"chapters/{chapter}"
@@ -689,7 +694,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         for ch in chapters:
             if self._verify_aborted:  # 事故中止：目录统计的后续章也跳过
                 break
-            if self._evaluate_chapter(ch):  # 内容 findings 非空 → 先修格式，核验等下轮复测
+            if self._content_findings(ch):  # 内容 findings 非空 → 先修格式，核验等下轮复测
                 continue
             await self._verify_chapter(ch)
 
@@ -896,10 +901,10 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         status="error",
                     )
                 hard: list[str] = []
+                # 终审修复 1b：诚实出口只豁免字数下限（_floor_finding），
+                # 核验/审校两道工序对出口章同样强制。
                 for ch in self._all_workspace_chapters():
                     st = self._chapter_state(ch)
-                    if st.exit_granted:
-                        continue  # 诚实出口举证通过 = 合规但记录
                     num = ch.split("_")[0]
                     if st.verified in ("pending", "unchecked"):
                         hard.append(
@@ -1074,9 +1079,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             return
         for ch in self._all_workspace_chapters():
             st = self._chapter_state(ch)
-            if st.exit_granted or st.verified in ("passed", "failed"):
+            if st.verified in ("passed", "failed"):
                 continue
-            if self._evaluate_chapter(ch):  # 内容脏章先修格式
+            if self._content_findings(ch):  # 内容脏章先修格式（字数不足不阻断核验）
                 continue
             await self._verify_chapter(ch)
 

@@ -656,6 +656,9 @@ async def test_exit_granted_after_review_verifies_evidence(tmp_path: Path) -> No
     assert out.status != "error"  # 举证通过 → merge 放行
     st = mw._chapters[CLEAN_CH]
     assert st.exit_granted is True
+    # 终审修复 1b：出口只豁免字数下限，真实性工序（核验/审校）仍须完成
+    assert st.verified == "passed"
+    assert st.reviewed is True
     notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
     assert "诚实出口" in notes  # 合规但记录
 
@@ -746,3 +749,38 @@ async def test_review_edit_forces_reverification(tmp_path: Path) -> None:
     assert second.status == "error"
     assert "证伪" in second.content
     assert any("2099" in p for p in stub.judge_prompts)  # 确实重核了改后文本
+
+
+# ---------------------------------------------------------------------------
+# R4 终审修复 1b：诚实出口只豁免字数下限，不豁免核验/审校
+# ---------------------------------------------------------------------------
+
+
+class _ExitButVerifyDown:
+    """出口核实 granted + 审校空编辑 + 核验抽取 infra 失败（verified=pending）。"""
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        system = str(kwargs.get("system") or "")
+        if "诚实出口" in system:
+            return '{"granted": true, "reason": "映射真实"}'
+        if "审校" in system:
+            return '{"edits": [], "doubts": []}'
+        raise TimeoutError("verify endpoint down")
+
+
+async def test_exit_granted_does_not_skip_verification(tmp_path: Path) -> None:
+    """终审复现：字数不足章出口举证通过即绕过真实性工序（verified=unchecked 也能合并）。
+    修复后：核验缺失（pending）的出口章 merge 硬失败，且硬失败不消耗 merge 额度。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_LONG})
+    (ws / "outline.md").write_text(OUTLINE_FLOOR_03, encoding="utf-8")
+    (ws / "progress.md").write_text(PROGRESS_EXIT_03, encoding="utf-8")
+    mw = ChapterGateMiddleware(ws, model_access=_ExitButVerifyDown())
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{CLEAN_CH}")  # dirty（字数不足）；核验 infra → pending
+    out = await _merge_call(mw)  # 出口核实通过（exit_granted=True）但核验缺失
+    assert out.status == "error"
+    assert "未完成核验" in out.content
+    st = mw._chapters[CLEAN_CH]
+    assert st.exit_granted is True  # 出口成立 ≠ 真实性工序豁免
+    assert st.verified == "pending"
+    assert mw._merge_rounds == 0
