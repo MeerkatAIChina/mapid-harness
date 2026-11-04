@@ -64,7 +64,7 @@ def _scan_text_residues(text: str, label: str) -> list[str]:
 
 
 def _pdf_text(pdf: Path) -> str | None:
-    """pdftotext 提取 PDF 文本（poppler 软依赖；不可用返回 None = 跳过文本检查）。"""
+    """pdftotext 提取 PDF 文本；不可用/失败返回 None，由调用方按 fail-closed 判验收失败。"""
     try:
         # 不用 text=True：Windows 中文locale 会按 GBK 解码 pdftotext 的 UTF-8 输出
         result = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, check=True)
