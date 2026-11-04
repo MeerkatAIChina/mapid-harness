@@ -1200,6 +1200,8 @@ class HarnessAgent:
         规格读 env ``OCTOP_VERIFY_MODEL``（provider/model ref），缺省回落主模型；
         建立失败 fail-open：返回 None（核验/审校工序关闭），不阻断门禁挂载。
         """
+        import os as _os
+
         spec = _os.environ.get("OCTOP_VERIFY_MODEL", "").strip()
         if not spec:
             try:
