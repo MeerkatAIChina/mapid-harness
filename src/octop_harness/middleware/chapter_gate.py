@@ -62,7 +62,12 @@ CHAPTER_CHECKERS = (
     "intra_chapter_redundancy",
 )
 # merge 终闸：四检查器 + 数值一致性（M1 修正后）+ 结构
-MERGE_CHECKERS = CHAPTER_CHECKERS + ("numeric_consistency", "structure")
+MERGE_CHECKERS = CHAPTER_CHECKERS + (
+    "numeric_consistency",
+    "structure",
+    "citation_cross_chapter",
+    "ledger_ref_duplicate",
+)
 
 _WRITE_TOOLS = ("write_file", "edit_file")
 _STATS_TOOL = "report_stats"

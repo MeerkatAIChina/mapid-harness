@@ -62,16 +62,16 @@ def strip_reference_section(chapter_text: str) -> str:
     return chapter_text[: m.start()] + chapter_text[end:]
 
 
-def parse_ledger_refs(ledger_text: str) -> set[int] | None:
-    """解析台账 ref 列的已注册编号集合；台账没有 ref 列时返回 None（豁免信号）。
+def parse_ledger_ref_rows(ledger_text: str) -> list[tuple[str, int]] | None:
+    """解析台账 ref 列的 (首列指标名, ref 编号) 行；无 ref 列返回 None（豁免信号）。
 
     台账可能有多张表（回归脚本会把伪造表追加在原表后）：任何一张表带 ref 列
-    即视为启用注册中心，编号取所有带 ref 列表的并集。
+    即视为启用注册中心。
     """
     table_lines = [ln for ln in ledger_text.splitlines() if ln.strip().startswith("|")]
     if not table_lines:
         return None
-    refs: set[int] = set()
+    rows: list[tuple[str, int]] = []
     found_ref_column = False
     i = 0
     while i < len(table_lines):
@@ -95,9 +95,15 @@ def parse_ledger_refs(ledger_text: str) -> set[int] | None:
                         if all(set(c) <= {"-", ":"} for c in row if c):
                             break
                         if ref_idx < len(row) and row[ref_idx].isdigit():
-                            refs.add(int(row[ref_idx]))
+                            rows.append((row[0], int(row[ref_idx])))
                         j += 1
                 i = j
                 continue
         i += 1
-    return refs if found_ref_column else None
+    return rows if found_ref_column else None
+
+
+def parse_ledger_refs(ledger_text: str) -> set[int] | None:
+    """解析台账 ref 列的已注册编号集合；台账没有 ref 列时返回 None（豁免信号）。"""
+    rows = parse_ledger_ref_rows(ledger_text)
+    return None if rows is None else {ref for _, ref in rows}

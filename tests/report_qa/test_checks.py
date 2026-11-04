@@ -795,3 +795,74 @@ def test_normal_chapter_counts_in_numbering(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, chapters={"05_甲.md": BODY_600, "06_乙.md": BODY_600, "07_丙.md": BODY_600})
     findings = checks.check_structure(ws)
     assert not any("编号不连续" in f["message"] for f in findings)
+
+
+# ---------------------------------------------------------------------------
+# R4 终审修复 2c：跨章同号异源 + 台账重复取号
+# ---------------------------------------------------------------------------
+
+CH_A_REF1 = "\n".join([
+    "# 03 章", "",
+    "正文引用[1]。" + BODY_600, "",
+    "## 本章参考资料", "",
+    "[1] 甲公司《2024年年度报告》，2025",
+    "",
+])
+CH_B_REF1 = "\n".join([
+    "# 04 章", "",
+    "正文引用[1]。" + BODY_600, "",
+    "## 本章参考资料", "",
+    "[1] 乙研究院《照明行业年报》，2024",
+    "",
+])
+
+
+def test_citation_cross_chapter_conflict(tmp_path: Path) -> None:
+    """终审复现：两章都用 [1] 分别指向甲、乙两份不同年报，检查结果为零违规。"""
+    ws = make_ws(tmp_path, chapters={"03_a.md": CH_A_REF1, "04_b.md": CH_B_REF1})
+    findings = checks.check_citation_cross_chapter(ws)
+    assert any(
+        f["check"] == "citation_cross_chapter" and "[1]" in f["message"] for f in findings
+    )
+
+
+def test_citation_cross_chapter_same_source_ok(tmp_path: Path) -> None:
+    # 两章 [1] 指向同一条目文本 = 合法共享
+    ws = make_ws(tmp_path, chapters={"03_a.md": CH_A_REF1, "04_b.md": CH_A_REF1})
+    assert checks.check_citation_cross_chapter(ws) == []
+
+
+def test_ledger_ref_duplicate_flagged(tmp_path: Path) -> None:
+    """终审复现：两个不同台账指标重复注册 ref=1，解析后只剩集合 {1}，冲突不可见。"""
+    ledger = "\n".join([
+        "# 数据台账", "",
+        "| 指标 | 数值 | ref |",
+        "| --- | --- | --- |",
+        "| 甲公司2024年营收 | 100 | 1 |",
+        "| 乙公司2024年营收 | 200 | 1 |",
+        "",
+    ])
+    ws = make_ws(tmp_path, ledger=ledger)
+    findings = checks.check_ledger_ref_duplicate(ws)
+    assert any(
+        f["check"] == "ledger_ref_duplicate" and "ref=1" in f["evidence"] for f in findings
+    )
+
+
+def test_ledger_ref_duplicate_same_indicator_ok(tmp_path: Path) -> None:
+    # 同指标同号多行（数值冲突型，归 numeric_consistency 管）≠ 重复取号
+    ledger = "\n".join([
+        "# 数据台账", "",
+        "| 指标 | 数值 | ref |",
+        "| --- | --- | --- |",
+        "| 甲公司2024年营收 | 100 | 1 |",
+        "| 甲公司2024年营收 | 120 | 1 |",
+        "",
+    ])
+    ws = make_ws(tmp_path, ledger=ledger)
+    assert checks.check_ledger_ref_duplicate(ws) == []
+
+
+def test_ledger_ref_duplicate_legacy_exempt(tmp_path: Path) -> None:
+    ws = make_ws(tmp_path, ledger=good_ledger())  # 无 ref 列 → 豁免
+    assert checks.check_ledger_ref_duplicate(ws) == []

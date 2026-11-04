@@ -19,6 +19,7 @@ from octop_harness.report_qa.numparse import (
 from octop_harness.report_qa.citations import (
     CITATION_REF_RE,
     extract_citation_refs,
+    parse_ledger_ref_rows,
     parse_ledger_refs,
     parse_reference_section,
     strip_reference_section,
@@ -1019,6 +1020,66 @@ def check_citation_ledger_ref(workspace: Path) -> list[Finding]:
     return findings
 
 
+def check_citation_cross_chapter(workspace: Path) -> list[Finding]:
+    """同一 [n] 在不同章指向不同来源条目（全书一号一源，终审修复 2c）→ high。"""
+    by_num: dict[int, dict[str, list[str]]] = {}
+    for _, path in _chapter_files(workspace):
+        for n, text in parse_reference_section(_read(path)).items():
+            key = " ".join(text.split())
+            by_num.setdefault(n, {}).setdefault(key, []).append(_rel(workspace, path))
+    findings: list[Finding] = []
+    for n in sorted(by_num):
+        variants = by_num[n]
+        if len(variants) < 2:
+            continue
+        usage = "；".join(
+            f"{files[0]} 指「{text[:40]}」" for text, files in sorted(variants.items())
+        )
+        anchor_file = sorted(variants.items())[1][1][0]
+        findings.append(
+            _finding(
+                "citation_cross_chapter",
+                SEVERITY_HIGH,
+                anchor_file,
+                0,
+                f"跨章同号异源：[{n}] 指向多个不同来源（{usage}），全书须一号一源",
+                f"[{n}]",
+            )
+        )
+    return findings
+
+
+def check_ledger_ref_duplicate(workspace: Path) -> list[Finding]:
+    """同一 ref 编号登记到多个不同指标（重复取号，终审修复 2c）→ high；无 ref 列豁免。"""
+    ledger_path = workspace / LEDGER_FILENAME
+    if not ledger_path.is_file():
+        return []
+    rows = parse_ledger_ref_rows(_read(ledger_path))
+    if rows is None:
+        return []
+    by_ref: dict[int, set[str]] = {}
+    for name, ref in rows:
+        if name:
+            by_ref.setdefault(ref, set()).add(name)
+    findings: list[Finding] = []
+    for ref in sorted(by_ref):
+        names = sorted(by_ref[ref])
+        if len(names) < 2:
+            continue
+        findings.append(
+            _finding(
+                "ledger_ref_duplicate",
+                SEVERITY_HIGH,
+                LEDGER_FILENAME,
+                0,
+                f"重复取号：ref={ref} 登记了 {len(names)} 个不同指标"
+                f"（{'、'.join(names[:3])}），同号即同源",
+                f"ref={ref}",
+            )
+        )
+    return findings
+
+
 # ---------------------------------------------------------------------------
 # 11. 占位符扫描（设计文档_R4 §5.2，GD-21）
 # ---------------------------------------------------------------------------
@@ -1136,6 +1197,8 @@ CHECKERS: dict[str, Callable[[Path], list[Finding]]] = {
     "citation_dangling": check_citation_dangling,
     "citation_orphan": check_citation_orphan,
     "citation_ledger_ref": check_citation_ledger_ref,
+    "citation_cross_chapter": check_citation_cross_chapter,
+    "ledger_ref_duplicate": check_ledger_ref_duplicate,
     "placeholder_scan": check_placeholder_scan,
     "intra_chapter_redundancy": check_intra_chapter_redundancy,
 }
