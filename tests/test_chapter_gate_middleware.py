@@ -433,8 +433,9 @@ async def test_review_chain_own_edit_exempt(tmp_path: Path) -> None:
     await _stats(mw, f"chapters/{CLEAN_CH}")
     mw.apply_review_edit(CLEAN_CH, "审校改写后的文字。\n")
     st = mw._chapters[CLEAN_CH]
-    assert st.reviewed is True  # 审校自身改动豁免「编辑即清」
-    assert st.verified == "passed"  # 事实疑点走核验队列，审校不动 verified
+    assert st.reviewed is True  # 审校自身改动豁免「编辑即清」的 reviewed 维度
+    assert st.verified == "unchecked"  # 但文本已变 → 核验结论作废，merge 前补核重验（终审修复）
+    assert st.verify_findings == [] and st.verify_notes == []
     assert st.status == "unevaluated"  # 但仍待复测
     assert (ws / "chapters" / CLEAN_CH).read_text(encoding="utf-8") == "审校改写后的文字。\n"
 
@@ -447,7 +448,7 @@ async def test_state_persisted_and_restored(tmp_path: Path) -> None:
     # 新实例（模拟重启）恢复状态
     mw2 = ChapterGateMiddleware(ws, model_access=_MockVerifyModel())
     st2 = mw2._chapters[CLEAN_CH]
-    assert st2.verified == "passed"
+    assert st2.verified == "unchecked"
     assert st2.reviewed is True
     assert st2.status == "unevaluated"
 
@@ -670,3 +671,78 @@ async def test_exit_rejected_blocks_merge(tmp_path: Path) -> None:
     assert out.status == "error"
     assert "出口举证被驳回" in out.content
     assert mw._chapters[CLEAN_CH].exit_granted is False
+
+
+# ---------------------------------------------------------------------------
+# R4 终审修复 1a：审校改文后必须重新核验（终审复现：2020 被改成 2099）
+# ---------------------------------------------------------------------------
+
+LISTING_2020 = "欧普照明于 2020 年在上海证券交易所主板上市，股票代码 603515[1]。"
+LISTING_2099 = "欧普照明于 2099 年在上海证券交易所主板上市，股票代码 603515[1]。"
+_REF_SECTION = "\n\n## 本章参考资料\n\n[1] 欧普照明年度报告，上海证券交易所披露平台。\n"
+CHAPTER_2020 = LISTING_2020 + "\n" + CLEAN_LONG + _REF_SECTION
+
+
+async def _search_ok(query: str) -> list[dict]:
+    return [{"url": "https://example.com/official", "title": "t", "snippet": "s"}]
+
+
+async def _fetch_ok(url: str) -> str:
+    return "官方披露正文：欧普照明 2020 年在上海证券交易所主板上市。"
+
+
+class _ReviewCorruptsYear:
+    """四角色桩：抽取空（走关键词通路）；判定：提示词含 2099 → 证伪，否则证实；
+    审校首次把上市年份 2020 改成 2099（此后不再改）；记录全部判定提示词。"""
+
+    def __init__(self) -> None:
+        self.judge_prompts: list[str] = []
+        self._reviewed = False
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        system = str(kwargs.get("system") or "")
+        if "审校" in system:
+            if self._reviewed:
+                return '{"edits": [], "doubts": []}'
+            self._reviewed = True
+            return json.dumps(
+                {
+                    "edits": [
+                        {"line": 1, "new": LISTING_2099, "reason": "模拟审校引入事实错误"}
+                    ],
+                    "doubts": [],
+                },
+                ensure_ascii=False,
+            )
+        if "抽取" in system:
+            return '{"assertions": []}'
+        self.judge_prompts.append(prompt)
+        if "2099" in prompt:
+            return json.dumps(
+                {"verdict": "refuted", "reason": "官方披露为 2020 年"}, ensure_ascii=False
+            )
+        return json.dumps({"verdict": "confirmed", "reason": "官方披露一致"}, ensure_ascii=False)
+
+
+async def test_review_edit_forces_reverification(tmp_path: Path) -> None:
+    """终审复现：审校把上市年份 2020 改成 2099 —— 第一次 merge 拦（审校已改），
+    第二次 merge 必须重新核验并拦下证伪断言（修复前：第二次直接放行，2099 进报告）。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: CHAPTER_2020})
+    stub = _ReviewCorruptsYear()
+    mw = ChapterGateMiddleware(
+        ws, model_access=stub, verify_search=_search_ok, verify_fetch=_fetch_ok
+    )
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert mw._chapters[CLEAN_CH].verified == "passed"
+
+    first = await _merge_call(mw)
+    assert first.status == "error"
+    assert "审校已改" in first.content
+    assert LISTING_2099 in (ws / "chapters" / CLEAN_CH).read_text(encoding="utf-8")
+    assert mw._chapters[CLEAN_CH].verified == "unchecked"  # 文本已变，核验结论作废
+
+    second = await _merge_call(mw)
+    assert second.status == "error"
+    assert "证伪" in second.content
+    assert any("2099" in p for p in stub.judge_prompts)  # 确实重核了改后文本

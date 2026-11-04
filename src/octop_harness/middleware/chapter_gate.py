@@ -313,13 +313,17 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             logger.warning("chapter_gate: 状态恢复失败，按全新状态启动", exc_info=True)
 
     def apply_review_edit(self, chapter: str, new_text: str) -> None:
-        """审校工序自身改动（设计裁定 14 豁免「编辑即清」）：落盘 + 置 reviewed，
-        verified 保留（事实疑点走核验队列，不由审校判）；章置 unevaluated 待复测。"""
+        """审校工序自身改动：落盘 + 置 reviewed（裁定 14 的豁免只留 reviewed 维度）。
+        文本已变 → verified 清回 unchecked，merge 前补核会对改后文本重验
+        （终审修复：审校引入的事实错误不得带着旧核验结论进合并）。"""
         (self._workspace / "chapters" / chapter).write_text(new_text, encoding="utf-8")
         st = self._chapter_state(chapter)
         st.reviewed = True
         st.status = "unevaluated"
         st.findings = []
+        st.verified = "unchecked"
+        st.verify_findings = []
+        st.verify_notes = []
         self._persist_state()
 
     def mark_reviewed(self, chapter: str) -> None:
