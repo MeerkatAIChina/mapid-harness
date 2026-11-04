@@ -1023,7 +1023,8 @@ def check_citation_ledger_ref(workspace: Path) -> list[Finding]:
 # 11. 占位符扫描（设计文档_R4 §5.2，GD-21）
 # ---------------------------------------------------------------------------
 
-_PLACEHOLDER_RE = re.compile(r"XX[亿万百千个%]?|待补充|待填写|此处省略|▢")
+# 占位符模式（pipeline.validate_report 交付验收复用同一口径）
+PLACEHOLDER_RE = re.compile(r"XX[亿万百千个%]?|待补充|待填写|此处省略|▢")
 
 
 def check_placeholder_scan(workspace: Path) -> list[Finding]:
@@ -1031,7 +1032,7 @@ def check_placeholder_scan(workspace: Path) -> list[Finding]:
     findings: list[Finding] = []
     for _, path in _chapter_files(workspace):
         for i, line in enumerate(_read(path).splitlines()):
-            m = _PLACEHOLDER_RE.search(line)
+            m = PLACEHOLDER_RE.search(line)
             if m:
                 findings.append(
                     _finding(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -57,3 +58,28 @@ def test_validate_report_passes_on_full_outputs(tmp_path: Path):
 def test_validate_report_catches_missing(tmp_path: Path):
     failures = validate_report(tmp_path, "report")
     assert any("缺" in f for f in failures)
+
+
+def test_validate_report_catches_placeholder_all_formats(tmp_path: Path):
+    """终审复现：三格式产物含「XX 亿」占位符，验收必须 FAIL（修复前返回 []）。"""
+    from octop_harness.pipeline.build_outputs import build_outputs
+
+    md_path = tmp_path / "in.md"
+    md_path.write_text(SAMPLE_MD.replace("70.96 亿元", "XX 亿元"), encoding="utf-8")
+    build_outputs(md_path, tmp_path, "report")
+    failures = validate_report(tmp_path, "report")
+    assert any(f.startswith("HTML") and "占位符" in f for f in failures)
+    assert any(f.startswith("Word") and "占位符" in f for f in failures)
+    if shutil.which("pdftotext"):
+        assert any(f.startswith("PDF") and "占位符" in f for f in failures)
+
+
+def test_validate_report_scans_docx_forbidden_patterns(tmp_path: Path):
+    """终审复现：DOCX 此前不扫描生成残留禁词（只有 HTML 扫）。"""
+    from octop_harness.pipeline.build_outputs import build_outputs
+
+    md_path = tmp_path / "in.md"
+    md_path.write_text(SAMPLE_MD + "\n\n建议改为：略。\n", encoding="utf-8")
+    build_outputs(md_path, tmp_path, "report")
+    failures = validate_report(tmp_path, "report")
+    assert any(f.startswith("Word") and "生成残留" in f for f in failures)

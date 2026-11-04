@@ -18,6 +18,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from octop_harness.pipeline.clean_report_markup import FORBIDDEN_PATTERNS
+from octop_harness.report_qa.checks import PLACEHOLDER_RE
 
 _MIN_BYTES = 10_000
 _MD_RESIDUE = [r"\*\*", r"\|\s*:?-{2,}:?\s*\|", r"graph TD", r"```"]
@@ -47,6 +48,31 @@ class _AuditHTML(HTMLParser):
             self.text.append(data)
 
 
+def _scan_text_residues(text: str, label: str) -> list[str]:
+    """统一扫描某格式的提取文本：Markdown 残留 + 生成残留禁词 + 占位符（终审修复 2a）。"""
+    failures: list[str] = []
+    for pattern in _MD_RESIDUE:
+        if re.search(pattern, text):
+            failures.append(f"{label} 存在 Markdown 残留：{pattern}")
+    for p in FORBIDDEN_PATTERNS:
+        if p.search(text):
+            failures.append(f"{label} 存在生成残留：{p.pattern}")
+    m = PLACEHOLDER_RE.search(text)
+    if m:
+        failures.append(f"{label} 存在占位符：{m.group(0)}")
+    return failures
+
+
+def _pdf_text(pdf: Path) -> str | None:
+    """pdftotext 提取 PDF 文本（poppler 软依赖；不可用返回 None = 跳过文本检查）。"""
+    try:
+        # 不用 text=True：Windows 中文locale 会按 GBK 解码 pdftotext 的 UTF-8 输出
+        result = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, check=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.decode("utf-8", errors="replace")
+
+
 def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
     """返回验收失败信息列表；空列表 = 全过。"""
     output_dir = Path(output_dir)
@@ -66,12 +92,7 @@ def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
         parser = _AuditHTML()
         parser.feed(html.read_text(encoding="utf-8"))
         visible = "\n".join(parser.text)
-        for pattern in _MD_RESIDUE:
-            if re.search(pattern, visible):
-                failures.append(f"HTML 可见文本存在 Markdown 残留：{pattern}")
-        for p in FORBIDDEN_PATTERNS:
-            if p.search(visible):
-                failures.append(f"HTML 可见文本存在生成残留：{p.pattern}")
+        failures.extend(_scan_text_residues(visible, "HTML 可见文本"))
 
     # DOCX 媒体与残留
     docx = output_dir / f"{base_name}.docx"
@@ -84,9 +105,8 @@ def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
             expected = len(json.loads(manifest.read_text(encoding="utf-8")))
             if len(media) < expected:
                 failures.append(f"Word 图表/公式图片不足：{len(media)} < {expected}")
-        for pattern in _MD_RESIDUE:
-            if re.search(pattern, document):
-                failures.append(f"Word 存在 Markdown 残留：{pattern}")
+        text = re.sub(r"<[^>]+>", "", document)
+        failures.extend(_scan_text_residues(text, "Word"))
 
     # PDF 页数（pdfinfo 软依赖，缺失跳过）
     pdf = output_dir / f"{base_name}.pdf"
@@ -100,6 +120,9 @@ def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
                 failures.append("PDF 页数为 0")
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass
+        text = _pdf_text(pdf)
+        if text is not None:
+            failures.extend(_scan_text_residues(text, "PDF"))
 
     return failures
 
