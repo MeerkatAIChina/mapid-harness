@@ -47,6 +47,8 @@ def test_convert_three_formats_from_same_md(tmp_path: Path):
 
 
 def test_validate_report_passes_on_full_outputs(tmp_path: Path):
+    if not shutil.which("pdftotext"):
+        pytest.skip("pdftotext 不可用：PDF 文本检查 fail-closed，全过断言需要完整工具链")
     from octop_harness.pipeline.build_outputs import build_outputs
 
     md_path = tmp_path / "in.md"
@@ -111,3 +113,17 @@ def test_build_rejects_chart_refs_not_in_ledger(tmp_path: Path):
     md_path.write_text(SAMPLE_MD, encoding="utf-8")
     with pytest.raises(ValueError, match="未登记"):
         build_outputs(md_path, tmp_path, "report")
+
+
+def test_validate_report_fails_when_pdf_text_unchecked(tmp_path: Path, monkeypatch):
+    """终审复验复现：无 pdftotext 时 PDF 文本检查静默跳过，「未检查」被当成「通过」。
+    修复后：工具缺失/提取失败 = 验收失败。"""
+    import octop_harness.pipeline.validate_report as vr
+    from octop_harness.pipeline.build_outputs import build_outputs
+
+    md_path = tmp_path / "in.md"
+    md_path.write_text(SAMPLE_MD, encoding="utf-8")
+    build_outputs(md_path, tmp_path, "report")
+    monkeypatch.setattr(vr, "_pdf_text", lambda pdf: None)  # 模拟 pdftotext 缺失
+    failures = validate_report(tmp_path, "report")
+    assert any("PDF 文本未检查" in f for f in failures)

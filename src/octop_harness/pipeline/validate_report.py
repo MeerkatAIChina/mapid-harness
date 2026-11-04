@@ -121,7 +121,10 @@ def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass
         text = _pdf_text(pdf)
-        if text is not None:
+        if text is None:
+            # fail-closed（终审复验补修）：工具缺失 = 未检查，未检查 ≠ 通过
+            failures.append("PDF 文本未检查：pdftotext 不可用或提取失败")
+        else:
             failures.extend(_scan_text_residues(text, "PDF"))
 
     return failures

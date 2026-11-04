@@ -866,3 +866,12 @@ def test_ledger_ref_duplicate_same_indicator_ok(tmp_path: Path) -> None:
 def test_ledger_ref_duplicate_legacy_exempt(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, ledger=good_ledger())  # 无 ref 列 → 豁免
     assert checks.check_ledger_ref_duplicate(ws) == []
+
+
+def test_citation_cross_chapter_same_source_different_number(tmp_path: Path) -> None:
+    """终审复验复现：两章 [1]/[2] 指向同一条目文本（同源异号），
+    违反「同一来源全书固定一个号」，修复前返回 []。"""
+    ch_c = CH_A_REF1.replace("[1]", "[2]")  # 同一条目文本，不同编号
+    ws = make_ws(tmp_path, chapters={"03_a.md": CH_A_REF1, "04_c.md": ch_c})
+    findings = checks.check_citation_cross_chapter(ws)
+    assert any("同源异号" in f["message"] for f in findings)

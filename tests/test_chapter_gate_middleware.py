@@ -837,3 +837,24 @@ async def test_unverifiable_blocks_merge_until_marked(tmp_path: Path) -> None:
     ok = await _merge_call(mw)
     assert ok.status != "error"
     assert mw._chapters[UNVERIFIABLE_CH].verify_notes == []
+
+
+# ---------------------------------------------------------------------------
+# R4 终审复验补修：台账反查断言按正文标注出队
+# ---------------------------------------------------------------------------
+
+LEDGER_WITH_ACQ = LEDGER + "| 收购事项 | 未披露 | — | — | 年报 | 08 |\n"
+
+
+async def test_ledger_assertion_cleared_when_body_marked(tmp_path: Path) -> None:
+    """终审复验复现：正文已标 [待核实]，但台账反查断言「收购事项：未披露」字符串
+    不含标注仍入 verify_notes，merge 继续被拦。修复后：正文已处置的同断言出队放行。"""
+    ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ_MARKED}, ledger=LEDGER_WITH_ACQ)
+    mw = ChapterGateMiddleware(
+        ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok
+    )
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{UNVERIFIABLE_CH}")
+    assert mw._chapters[UNVERIFIABLE_CH].verify_notes == []
+    ok = await _merge_call(mw)
+    assert ok.status != "error"

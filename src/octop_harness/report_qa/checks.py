@@ -1021,12 +1021,19 @@ def check_citation_ledger_ref(workspace: Path) -> list[Finding]:
 
 
 def check_citation_cross_chapter(workspace: Path) -> list[Finding]:
-    """同一 [n] 在不同章指向不同来源条目（全书一号一源，终审修复 2c）→ high。"""
+    """全书引用编号一致性（终审修复 2c + 复验补修）→ high。
+
+    两个方向：同号异源（同一 [n] 在不同章指向不同来源条目）；
+    同源异号（同一来源条目在不同章使用不同编号）——设计要求「同一来源全书一个号」。
+    """
     by_num: dict[int, dict[str, list[str]]] = {}
+    by_text: dict[str, dict[int, list[str]]] = {}
     for _, path in _chapter_files(workspace):
         for n, text in parse_reference_section(_read(path)).items():
             key = " ".join(text.split())
-            by_num.setdefault(n, {}).setdefault(key, []).append(_rel(workspace, path))
+            rel = _rel(workspace, path)
+            by_num.setdefault(n, {}).setdefault(key, []).append(rel)
+            by_text.setdefault(key, {}).setdefault(n, []).append(rel)
     findings: list[Finding] = []
     for n in sorted(by_num):
         variants = by_num[n]
@@ -1044,6 +1051,22 @@ def check_citation_cross_chapter(workspace: Path) -> list[Finding]:
                 0,
                 f"跨章同号异源：[{n}] 指向多个不同来源（{usage}），全书须一号一源",
                 f"[{n}]",
+            )
+        )
+    for text, nums in sorted(by_text.items()):
+        if len(nums) < 2:
+            continue
+        usage = "；".join(f"[{n}] 见于 {files[0]}" for n, files in sorted(nums.items()))
+        anchor_file = sorted(nums.items())[1][1][0]
+        findings.append(
+            _finding(
+                "citation_cross_chapter",
+                SEVERITY_HIGH,
+                anchor_file,
+                0,
+                f"跨章同源异号：同一来源「{text[:40]}」使用多个编号（{usage}），"
+                "同一来源全书须固定一个号",
+                text[:60],
             )
         )
     return findings

@@ -39,12 +39,13 @@ from langgraph.types import Command
 from octop_harness.middleware.review_chain import apply_edits, run_review
 from octop_harness.middleware.verification import (
     extract_loadbearing_assertions,
+    is_acknowledged,
     sample_numeric_claims,
     verify_assertion,
     with_retry,
 )
 from octop_harness.report_qa.checks import CHECKERS
-from octop_harness.report_qa.citations import PENDING_MARK, strip_reference_section
+from octop_harness.report_qa.citations import strip_reference_section
 from octop_harness.report_qa.outline import parse_exit_applications, parse_word_count_floors
 
 logger = logging.getLogger(__name__)
@@ -684,8 +685,9 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     }
                 )
             elif v.result == "unverifiable":
-                # 已标 [待核实] = 已按降级处置（终审修复 1c），不计入待处理
-                if PENDING_MARK not in a:
+                # 已按降级处置（断言自带标注，或正文存在同事实标注句——
+                # 台账反查断言按正文出队，终审复验补修）不计入待处理
+                if not is_acknowledged(a, body):
                     st.verify_notes.append(a)
         st.verified = "failed" if st.verify_findings else "passed"
 

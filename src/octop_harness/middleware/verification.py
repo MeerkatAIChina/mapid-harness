@@ -20,6 +20,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from octop_harness.report_qa.citations import PENDING_MARK
+
 logger = logging.getLogger(__name__)
 
 # ①关键词预筛 + ②台账反查共用同一组关键词（设计 §3.1：上市|挂牌|借壳|并购|收购|股票代码|实控人）
@@ -176,6 +178,24 @@ async def verify_assertion(
     return Verdict(result, evidence_url=evidence_url, reason=str(data.get("reason", "")))
 
 
+def is_acknowledged(assertion: str, body_text: str) -> bool:
+    """查无实证断言是否已按降级处置（标注 [待核实]）。
+
+    两层判定：断言自带标注；或正文存在同事实的已标注句——共享 ≥2 位数字串
+    或同一承重关键词（终审复验补修：台账反查断言的字符串不含正文标注，
+    只看自身永远出不了队，需按事实匹配正文）。
+    """
+    if PENDING_MARK in assertion:
+        return True
+    marked = [s for s in _split_sentences(body_text) if PENDING_MARK in s]
+    digits = re.findall(r"\d{2,}", assertion)
+    kw = KEYWORD_RE.search(assertion)
+    return any(
+        any(d in s for d in digits) or (kw is not None and kw.group(0) in s)
+        for s in marked
+    )
+
+
 async def with_retry(
     call: Callable[[], Awaitable[Any]],
     *,
@@ -202,6 +222,7 @@ __all__ = [
     "extract_keyword_assertions",
     "extract_ledger_assertions",
     "extract_loadbearing_assertions",
+    "is_acknowledged",
     "sample_numeric_claims",
     "verify_assertion",
     "with_retry",
