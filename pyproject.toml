@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "octop-harness"
 # Single source of truth for the package version (runtime reads via importlib.metadata).
-version = "1.0.3"
+version = "1.0.7"
 description = "Production-grade Harness Agent built on top of LangChain Deep Agents."
 readme = "README.md"
 license = { text = "MIT" }
@@ -42,7 +42,9 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2.0",
     "httpx>=0.27",
     "markdownify>=0.13",
-    "octop-memory>=0.9.9",
+    # 1.0.3 exposes the background manual-document review API used by the
+    # memory scheduler and fixes extraction batching and persisted cursors.
+    "octop-memory>=1.0.3",
     "octop-browser>=0.9.9",
     "langchain-mcp-adapters>=0.3.0",
     # mcp 2.x breaks langchain-mcp-adapters (RequestContext import); pin until adapters support it.
@@ -71,7 +73,7 @@ pipeline = [
     "pillow>=10.0",
 ]
 # Aggregate extras (category installs; fine-grained extras remain preferred)
-desktop = ["mss>=9.0", "pynput>=1.7", "pillow>=10.0"]
+desktop = ["mss>=9.0", "pynput>=1.7", "pillow>=13.0.0"]
 web-search-all = [
     "langchain-tavily>=0.1",
     "langchain-community>=0.3",
@@ -89,7 +91,7 @@ all = [  # library feature extras only; exclude cli — use [cli,all] when neede
     "esdk-obs-python>=3.24",
     "mss>=9.0",
     "pynput>=1.7",
-    "pillow>=10.0",
+    "pillow>=13.0.0",
     "langchain-tavily>=0.1",
     "langchain-community>=0.3",
     "google-api-python-client>=2.0",
@@ -210,6 +212,9 @@ ignore = [
 "src/octop_harness/builtin/tools/acp_runner.py" = ["PLR0911"]
 "src/octop_harness/builtin/skills/**/scripts/*.py" = ["PLR0911", "PLR0912", "PLR0915"]
 "src/octop_harness/context_usage.py" = ["PLR0912"]
+# Fork 注记：Meerkat 长报告机制挂载的自有中间件使 _build_middleware 超出上游复杂度
+# 上限（上游 v1.0.7 单独在内）；不改内核函数结构，仅豁免（docs/meerkat/v1.0.6/ADR.md）
+"src/octop_harness/agent.py" = ["PLR0912", "PLR0915"]
 # 章节门禁状态机：大函数多分派是领域形态（比照 cli/** 惯例）
 "src/octop_harness/middleware/chapter_gate.py" = ["PLR0911", "PLR0912", "PLR0915"]
 # 渲染管线（同事内核移植件）：内嵌 CSS/JS 模板行长无意义；reportlab 强制

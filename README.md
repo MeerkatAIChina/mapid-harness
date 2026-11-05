@@ -80,7 +80,28 @@ octop-harness is a library (not an app) that turns deepagents into a deployable 
 - 17 user-editable provider presets, including Hunyuan, Kimi, GLM, DeepSeek, MiniMax, and Moonshot.
 
 #### Memory (tiered)
-- Each turn is captured as **L0 raw events**, then distilled asynchronously into **L2 atoms** (`AtomCard`s) and **L3 entity pages**.
+- `MEMORY.md` (strong memory) and `USER.md` (profile) are snapshotted once per
+  session and reused from the checkpoint. Edits apply to new sessions. With
+  structured memory on, the user maintains both files, agent file tools are
+  read-only, and remember requests use `memory_save`. With structured memory
+  off, the agent edits both files directly; delete and move stay blocked.
+  `manual_document_policy` defaults to `auto` and follows that switch; `user`
+  keeps the files owner-maintained, and `agent` allows edits even while
+  structured memory is on. The compiled system prompt owns this policy and
+  overrides older rules left in workspace `AGENTS.md`.
+- Workspace context loading, session snapshots, prompt formatting and cache
+  breakpoints use deepagents' native `MemoryMiddleware`. Template updates do
+  not overwrite existing user documents.
+- Ordinary saves and automatic promotions check current owner documents through
+  `BackendWorkspace`, without refreshing the chat snapshot. Proven conflicts
+  retire the old atom and create a replacement review candidate, retaining evidence.
+  `memory_save` reports conflicts or incomplete checks. Duplicates remain stored
+  and are suppressed against matching session context. Uncertain checks leave facts
+  active. File-tool guards complement the host's shell/OS permissions.
+- Remember requests use `memory_save(content, topic)` to persist directly through
+  octop-memory; `memory_search` / `memory_get` retrieve additional history.
+- Eligible conversation content is captured as **L0 raw events**, then distilled asynchronously into **L2 atoms** (`AtomCard`s) and **L3 entity pages**. Runtime failures are excluded; normal troubleshooting knowledge and explicit remember requests remain eligible.
+- Model failures raise after retries; retry eligibility follows LangChain's defaults, with the existing retry budget and backoff settings. Callers must handle exceptions from `call()` / streaming. Checkpoints retain failed tasks without adding a synthetic assistant reply. Hosts display errors separately; automatic team failure notifications use `configurable.octop_memory_capture_exclude=true` to keep diagnostics out of memory.
 - Powered by the octop-memory middleware; memory travels with the workspace.
 - Recall is frozen once per user turn and appended to the model-facing user message,
   keeping the system prompt stable. Checkpoints preserve recall snapshots for exact
@@ -181,6 +202,8 @@ custom adapter without adding arbitrary protocol or authentication fields to dec
 
 ## How to Use
 
+Current release: **1.0.7**. See the [release notes](CHANGELOG.md).
+
 ### Prerequisites
 - **Python 3.12+**
 - A model provider API key (OpenAI / Anthropic / Bedrock / compatible)
@@ -207,7 +230,7 @@ Optional dependency extras (install only what you need; missing extras fail at u
 | `bedrock` | AWS Bedrock provider |
 | `object-storage` | Tencent COS + Alibaba OSS + Huawei OBS SDKs |
 | `desktop` | Desktop screenshot / input (`mss`, `pynput`, `pillow`) |
-| `web-search-all` | All web-search backends (Tavily / Brave / Google) |
+| `web-search-all` | Optional web-search SDKs (Tavily / Brave / Google). DeepSeek uses core HTTP support. |
 | `remote-backends` | Postgres workspace backend (`psycopg`). S3 uses the bundled boto3 backend. |
 | `observability` | Langfuse |
 | `acp` | ACP agent runner |
@@ -290,6 +313,11 @@ Responses. Models using Responses may also opt in to
 used only for clear unsupported-endpoint/model errors, before any streamed
 output. It does not apply to native tool search or other Responses-only request
 features, and never masks authentication, rate-limit, timeout, or server errors.
+
+HITL `resume_hitl(thread_id, decisions)` retains the paused stream's user, tool
+selections and other request configuration across nested approvals. The host must
+authorize the resume caller. This context is process-local, isolated by thread,
+and released when the resumed stream finishes or the agent closes.
 
 ## Documentation
 
@@ -375,3 +403,35 @@ Thanks to all contributors:
 <a href="https://github.com/TencentCloud/octop-harness/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=TencentCloud/octop-harness" />
 </a>
+
+### Channel plugins
+
+A `kind: channel` manifest may register a channel class with
+`ctx.channel("acme", AcmeChannel, label="Acme IM", fields=[...])`.
+The class must inherit the hosts gateway `BaseChannel`; factories are not
+accepted. Harness stores metadata without importing the gateway. The host
+registers implementations before constructing persisted channels. Plugin IDs
+own their kinds: updates replace the same plugin, and conflicting owners are
+rejected. Hosts must stop affected live instances before replacing or removing
+registrations. Installing this library alone does not add channels to a host
+that has not implemented the bridge.
+
+## Persistent MCP sessions
+
+Use `ManagedMCPClient` when tools keep state across calls, such as a design brief.
+The client owns its transport in one task and serializes concurrent callers.
+It returns original MCP SDK results, including structured content and errors.
+
+```python
+from octop_harness import ManagedMCPClient
+
+async with ManagedMCPClient({"transport": "stdio", "command": "my-mcp", "args": []}) as client:
+    definitions = await client.get_tools()
+    result = await client.call_tool("collect", {"title": "Demo"})
+    resources = await client.list_resources()
+    resource = await client.read_resource("example://design")
+```
+
+Explicit `await client.aclose()` is also supported. Closed or disconnected clients
+must be replaced; writes are never retried automatically. Default MCP tool loading
+remains stateless.

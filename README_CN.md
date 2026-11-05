@@ -96,8 +96,13 @@
 
 
 #### 分层记忆
+- `MEMORY.md` 是强记忆，`USER.md` 是用户档案。每个会话首次加载全文快照，后续复用 checkpoint 中的快照；修改对新会话生效。结构化记忆开启时，这两份文档由用户手动维护，Agent 文件工具只读，「记住」走 `memory_save`。结构化记忆关闭时，Agent 用文件工具直接修改这两份文档，删除和移动仍被拦住。`manual_document_policy` 默认 `auto`，跟随这个开关；设为 `user` 时始终由用户维护，设为 `agent` 时即使记忆开启也允许 Agent 修改。规则由编译进系统提示的记忆段决定，并优先于工作区 `AGENTS.md` 里的旧写法。
+- 工作区上下文的统一读取、session 快照、提示词格式和缓存断点复用 deepagents 原生 `MemoryMiddleware`。模板更新不覆盖已有用户文档。
+- 普通记忆写入和自动晋升后，通过 `BackendWorkspace` 读取当前手动文档做核对，不刷新聊天快照。明确冲突以手动文档为准：旧 Atom 软停用，替代事实转 candidate，原证据保留；`memory_save` 会提示冲突或检查未完成。重复 Atom 保留，仅对已包含相同信息的会话快照抑制召回。语义不确定/模型不可用时不强制停用，宿主应展示待核对状态。文件工具防护不替代宿主的 shell/OS 权限策略。
+- 用户说「记住」时，Agent 使用 `memory_save(content, topic)` 直接保存到 octop-memory；`memory_search` / `memory_get` 用于补充历史召回。
 
-- 每一轮对话先记录为 **L0 原始事件**，再异步蒸馏为 **L2 原子**（`AtomCard`）与 **L3 实体页**。
+- 对话经采集策略过滤后记录为 **L0 原始事件**，再异步蒸馏为 **L2 原子**（`AtomCard`）与 **L3 实体页**。系统运行报错不进入记忆，正常排障经验和用户明确记忆请求仍可保存。
+- 模型重试耗尽后抛出异常；重试范围沿用 LangChain 默认判断，次数与退避参数保持原配置。调用方需处理 `call()` / 流式调用的异常；checkpoint 保留失败任务，不添加合成助手回复。宿主单独展示错误；团队自动失败通知设置 `configurable.octop_memory_capture_exclude=true`，避免诊断信息被采集为记忆。
 - 由 octop-memory 中间件驱动，记忆随工作区一同迁移。
 
 
@@ -129,6 +134,8 @@
 `octop-harness` 提供：`init`、`chat`、`agent`、`config`（如 `config provider add`）、`skill`、`update`。
 
 ## 如何使用
+
+当前版本：**1.0.7**。更新内容见[发布说明](CHANGELOG.md)。
 
 
 

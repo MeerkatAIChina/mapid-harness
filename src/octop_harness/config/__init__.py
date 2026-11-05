@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from deepagents import SubAgent
 
 from octop_harness.acp.models import ACPRunnerConfig, default_acp_runners
+from octop_harness.decision.config import DecisionConfig
 
 if TYPE_CHECKING:
     # State / runtime types are intentionally erased to ``Any`` to avoid
@@ -719,6 +720,10 @@ class HarnessAgentConfig:
     # (lose async) but cannot gain background dispatch.
     peer_invoke_mode: Literal["sync", "async", "both"] = "both"
 
+    # —— Decision model ——
+    # None, or a disabled config, leaves the middleware unmounted.
+    decision: DecisionConfig | None = None
+
     # —— Progressive tool loading ——
     # Names in this set remain registered with DeepAgents for real execution.
     # Client mode keeps name/description references visible but defers parameter
@@ -765,11 +770,13 @@ class HarnessAgentConfig:
     # Auto by default: every provider whose required env vars are set is
     # loaded. ``searchfree`` (zero-config) is always included. Accepted values:
     #   - ``"auto"`` / ``True`` (default): every provider whose required env
-    #     vars are set is loaded (tavily / brave / google / kimi / searchfree).
+    #     vars are set is loaded (tavily / brave / deepseek / google / kimi /
+    #     yuanbao / searchfree, plus ``you`` once ``YDC_API_KEY`` is set).
     #   - ``False``: no web-search tools loaded.
     #   - ``"all"``: every provider is loaded; the ones missing env vars
     #     return a plain-text error string when invoked.
-    #   - ``["tavily", "kimi"]``: an explicit list. Unknown names raise
+    #   - ``["you"]`` works without a key (free tier, 100 searches a day).
+    #   - ``["tavily", "deepseek"]``: an explicit list. Unknown names raise
     #     ``ValueError``; missing env vars raise ``RuntimeError`` so
     #     misconfiguration surfaces at agent construction time.
     web_search_tools: bool | Literal["auto", "all"] | Sequence[str] = "auto"
@@ -792,6 +799,11 @@ class HarnessAgentConfig:
 
     # —— Memory ——
     memory_enabled: bool = True
+    # Who may edit USER.md / MEMORY.md.
+    # ``auto`` locks them while structured memory is on and opens them when it
+    # is off. ``user`` keeps them owner-maintained. ``agent`` allows edits even
+    # while structured memory is on.
+    manual_document_policy: Literal["auto", "user", "agent"] = "auto"
     memory_backend: str | dict[str, Any] | Any = "sqlite"
     memory_backend_config: dict[str, Any] | None = None  # backend-specific settings
     memory_jsonl_enabled: bool = True
@@ -895,6 +907,10 @@ class HarnessAgentConfig:
         if self.memory_aux_extra_body is not None and not isinstance(self.memory_aux_extra_body, dict):
             raise ValueError("memory_aux_extra_body must be a dict when set")
 
+        if self.manual_document_policy not in ("auto", "user", "agent"):
+            raise ValueError(
+                f"manual_document_policy must be 'auto', 'user', or 'agent', got {self.manual_document_policy!r}",
+            )
         if self.language not in ("en", "zh"):
             raise ValueError(f"language must be 'en' or 'zh', got {self.language!r}")
         if self.tool_search_mode not in ("client", "native", "eager"):
@@ -1114,6 +1130,7 @@ class HarnessAgentConfig:
             "bootstrap_file": _path_to_str(self.bootstrap_file) if self.bootstrap_file else None,
             "bootstrap_marker": _path_to_str(self.bootstrap_marker) if self.bootstrap_marker else None,
             "memory_enabled": self.memory_enabled,
+            "manual_document_policy": self.manual_document_policy,
             "memory_backend_config": (
                 dict(self.memory_backend_config) if self.memory_backend_config is not None else None
             ),
@@ -1142,6 +1159,7 @@ class HarnessAgentConfig:
             "debug": self.debug,
             "language": self.language,
             "default_timezone": self.default_timezone,
+            "decision": self.decision.to_dict() if self.decision is not None else None,
         }
         # Backend: serialize only if it's a string or dict spec; live instances skipped.
         if isinstance(self.backend, str | dict) or self.backend is None:
@@ -1288,6 +1306,10 @@ def _coerce_config_field(
         if not isinstance(value, dict):
             raise TypeError("'media_generation' must be a dict or null")
         coerced = MediaGenerationConfig.from_dict(value)
+    elif key == "decision":
+        if not isinstance(value, dict):
+            raise TypeError("'decision' must be a dict or null")
+        coerced = DecisionConfig.from_dict(value)
     elif key == "subagents":
         coerced = [_subagent_from_dict(item) for item in value]
     else:
@@ -1408,6 +1430,7 @@ def _web_search_tools_to_jsonable(value: bool | Literal["auto", "all"] | Sequenc
 __all__ = [
     "DEFAULT_CONFIG_FILENAME",
     "DEFAULT_SESSION_LOG_MAX_BYTES",
+    "DecisionConfig",
     "HarnessAgentConfig",
     "InputModality",
     "MediaGenerationConfig",
