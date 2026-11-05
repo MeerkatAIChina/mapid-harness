@@ -271,9 +271,7 @@ async def test_default_search_no_results_is_empty(monkeypatch: pytest.MonkeyPatc
         async def ainvoke(self, args: dict) -> str:
             return "No results found."
 
-    monkeypatch.setattr(
-        "octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool()
-    )
+    monkeypatch.setattr("octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool())
     assert await chapter_gate._default_search("某查询") == []
 
 
@@ -285,11 +283,10 @@ async def test_default_search_error_still_infra(monkeypatch: pytest.MonkeyPatch)
         async def ainvoke(self, args: dict) -> str:
             return "Error: 上游 502"
 
-    monkeypatch.setattr(
-        "octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool()
-    )
+    monkeypatch.setattr("octop_harness.builtin.tools.web_search.searchfree.searchfree_search", _FakeTool())
     with pytest.raises(RuntimeError):
         await chapter_gate._default_search("某查询")
+
 
 # ---------------------------------------------------------------------------
 # 断言抽取：重复循环防护（round-6 实战：DeepSeek 断言枚举 ×57 复制撞上限）
@@ -312,7 +309,7 @@ async def test_extraction_salvages_repetitive_truncated_output() -> None:
     """模型陷重复循环+截断：挽救式解析去重救回真断言，不再按 infra 失败处理。"""
     uniq = [f"断言{i}：内容{i}" for i in range(3)]
     # 模拟事故现场：JSON 开头正常，同一批断言复制 N 遍，最后半截截断
-    body = "{\"assertions\": [" + ",".join(f'\"{a}\"' for a in uniq * 20) + ", \"半截"
+    body = '{"assertions": [' + ",".join(f'"{a}"' for a in uniq * 20) + ', "半截'
     model = _RawModel(body)
     assertions = await extract_loadbearing_assertions("中性文本。", LEDGER_PLAIN, model_access=model)
     assert assertions.count("断言0：内容0") == 1
@@ -330,5 +327,27 @@ async def test_extraction_passes_max_tokens_cap() -> None:
 async def test_extraction_unsalvageable_still_raises() -> None:
     """输出完全无可用断言 → 仍抛错（不掩盖真故障）。"""
     model = _RawModel("我完全不知道怎么回答这个问题")
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match=r"无 JSON"):
         await extract_loadbearing_assertions("中性文本。", LEDGER_PLAIN, model_access=model)
+
+
+# ---------------------------------------------------------------------------
+# round-7 实证修复：垃圾断言过滤 + 断言缓存键
+# ---------------------------------------------------------------------------
+
+
+def test_is_junk_assertion_filters_layout_fragments() -> None:
+    from octop_harness.middleware.verification import is_junk_assertion
+
+    assert is_junk_assertion("| 收购标的 | 对价 |")  # Markdown 表格行
+    assert is_junk_assertion("│ 第三层 竞品层：10家拆解 │")  # 版式框线行
+    assert is_junk_assertion("## 3.2 上市历程")  # 标题
+    assert is_junk_assertion("   ")  # 空白
+    assert not is_junk_assertion("欧普照明于 2020 年在上海证券交易所主板上市[1]。")
+
+
+def test_assertion_key_normalizes_whitespace() -> None:
+    from octop_harness.middleware.verification import assertion_key
+
+    assert assertion_key("欧普照明 2020 年上市") == assertion_key("欧普照明  2020\n年上市")
+    assert assertion_key("2020 年上市") != assertion_key("2021 年上市")

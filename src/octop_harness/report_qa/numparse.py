@@ -63,9 +63,7 @@ def spans_conflict(a: NumSpan, b: NumSpan, eps: float = 0.1) -> bool:
     - E9 型（8–12% vs 12–14%）：互不包含且重叠 0 ≤ eps → 冲突；
     - 8–13% vs 12–14%：重叠 1.0 > eps → 兼容。
     """
-    contains = (a.lo <= b.lo + eps and b.hi <= a.hi + eps) or (
-        b.lo <= a.lo + eps and a.hi <= b.hi + eps
-    )
+    contains = (a.lo <= b.lo + eps and b.hi <= a.hi + eps) or (b.lo <= a.lo + eps and a.hi <= b.hi + eps)
     if contains:
         return False
     overlap = min(a.hi, b.hi) - max(a.lo, b.lo)
@@ -76,9 +74,7 @@ def _normalize(text: str) -> str:
     return re.sub(r"[,\s]", "", text)
 
 
-def spans_support(
-    anchor: NumSpan, candidate: NumSpan, eps: float = 0.1, rel: float = 0.02
-) -> bool:
+def spans_support(anchor: NumSpan, candidate: NumSpan, eps: float = 0.1, rel: float = 0.02) -> bool:
     """出处锚点支持判定（conclusion_source 专用，比 spans_conflict 严格）。
 
     「不冲突」不足以支持一个锚点：结论章区间 [88,99] 会被被引章里任何

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Awaitable
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -72,9 +71,7 @@ def _handler(calls: list[str] | None = None, content: str = "ok"):
 
 
 async def _stats(mw: ChapterGateMiddleware, chapter_path: str) -> ToolMessage:
-    return await mw.awrap_tool_call(
-        _request("report_stats", {"path": chapter_path}), _handler(content="统计略")
-    )
+    return await mw.awrap_tool_call(_request("report_stats", {"path": chapter_path}), _handler(content="统计略"))
 
 
 async def _write(
@@ -83,9 +80,7 @@ async def _write(
     path: str,
     calls: list[str] | None = None,
 ) -> ToolMessage:
-    return await mw.awrap_tool_call(
-        _request(tool, {"file_path": path}), _handler(calls)
-    )
+    return await mw.awrap_tool_call(_request(tool, {"file_path": path}), _handler(calls))
 
 
 # ---------------------------------------------------------------------------
@@ -172,9 +167,7 @@ async def test_open_new_chapter_blocked_via_edit_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_repair_limit_releases_with_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+async def test_repair_limit_releases_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
     mw = ChapterGateMiddleware(ws)
     await _stats(mw, f"chapters/{DIRTY_CH}")
@@ -287,26 +280,18 @@ async def test_skeleton_write_then_edit_fill_same_opening(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_merge_gate_blocks_then_releases(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+async def test_merge_gate_blocks_then_releases(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     ws = make_ws(tmp_path, {DIRTY_CH: DIRTY_TEXT})
     mw = ChapterGateMiddleware(ws)
     calls: list[str] = []
-    out1 = await mw.awrap_tool_call(
-        _request("merge_chapters", {}), _handler(calls)
-    )
+    out1 = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler(calls))
     assert out1.status == "error"
     assert "[chapter_gate] 合并闸门" in out1.content
-    out2 = await mw.awrap_tool_call(
-        _request("merge_chapters", {}), _handler(calls)
-    )
+    out2 = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler(calls))
     assert out2.status == "error"
     assert calls == []  # 两次都未真正执行
     with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
-        out3 = await mw.awrap_tool_call(
-            _request("merge_chapters", {}), _handler(calls)
-        )
+        out3 = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler(calls))
     assert out3.status != "error"
     assert calls == ["merge_chapters"]
     assert "已达自修上限" in out3.content
@@ -317,18 +302,11 @@ async def test_merge_gate_blocks_then_releases(
 async def test_merge_gate_passes_clean_workspace(tmp_path: Path) -> None:
     # structure 检查器有空壳章线（<500 非空白字符），干净章需足量定性文字
     words = ["渠道", "品牌", "研发", "供应链", "组织", "服务", "营销", "产品"]
-    body = "\n".join(
-        f"本段从{a}{b}角度进行定性分析，不涉及任何量化数据。"
-        for a in words
-        for b in words
-        if a != b
-    )
+    body = "\n".join(f"本段从{a}{b}角度进行定性分析，不涉及任何量化数据。" for a in words for b in words if a != b)
     ws = make_ws(tmp_path, {CLEAN_CH: body})
     mw = ChapterGateMiddleware(ws)
     calls: list[str] = []
-    out = await mw.awrap_tool_call(
-        _request("merge_chapters", {}), _handler(calls)
-    )
+    out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler(calls))
     assert out.status != "error"
     assert calls == ["merge_chapters"]
 
@@ -344,9 +322,7 @@ async def test_unrelated_tool_passthrough(tmp_path: Path) -> None:
     mw = ChapterGateMiddleware(ws)
     await _stats(mw, f"chapters/{DIRTY_CH}")
     calls: list[str] = []
-    out = await mw.awrap_tool_call(
-        _request("read_file", {"file_path": f"chapters/{NEW_CH}"}), _handler(calls)
-    )
+    out = await mw.awrap_tool_call(_request("read_file", {"file_path": f"chapters/{NEW_CH}"}), _handler(calls))
     assert out.status != "error"
     assert calls == ["read_file"]
 
@@ -514,7 +490,7 @@ async def _dirty_then_release(tmp_path: Path):
 
 
 async def test_release_findings_persisted(tmp_path: Path) -> None:
-    mw, ws, out = await _dirty_then_release(tmp_path)
+    _, ws, out = await _dirty_then_release(tmp_path)
     assert out.status != "error"
     notes = (ws / "gate_release_notes.md").read_text(encoding="utf-8")
     assert DIRTY_CH in notes
@@ -528,7 +504,7 @@ async def test_release_postscript_has_terminator(tmp_path: Path) -> None:
 
 
 async def test_next_merge_repeats_open_items(tmp_path: Path) -> None:
-    mw, ws, _ = await _dirty_then_release(tmp_path)
+    mw, _, _ = await _dirty_then_release(tmp_path)
     out = await mw.awrap_tool_call(_request("merge_chapters", {}), _handler())
     assert out.status == "error"  # 脏章本身拦 merge
     assert "未闭环放行条目复述" in out.content
@@ -548,7 +524,7 @@ async def test_open_items_closed_after_clean_merge(tmp_path: Path) -> None:
 
 
 async def test_startup_recaps_open_items(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    mw, ws, _ = await _dirty_then_release(tmp_path)
+    _, ws, _ = await _dirty_then_release(tmp_path)
     with caplog.at_level(logging.WARNING, logger="octop_harness.middleware.chapter_gate"):
         ChapterGateMiddleware(ws)  # 新实例 = 任务重启
     assert any("未闭环放行条目" in rec.message for rec in caplog.records)
@@ -710,9 +686,7 @@ class _ReviewCorruptsYear:
             self._reviewed = True
             return json.dumps(
                 {
-                    "edits": [
-                        {"line": 1, "new": LISTING_2099, "reason": "模拟审校引入事实错误"}
-                    ],
+                    "edits": [{"line": 1, "new": LISTING_2099, "reason": "模拟审校引入事实错误"}],
                     "doubts": [],
                 },
                 ensure_ascii=False,
@@ -721,9 +695,7 @@ class _ReviewCorruptsYear:
             return '{"assertions": []}'
         self.judge_prompts.append(prompt)
         if "2099" in prompt:
-            return json.dumps(
-                {"verdict": "refuted", "reason": "官方披露为 2020 年"}, ensure_ascii=False
-            )
+            return json.dumps({"verdict": "refuted", "reason": "官方披露为 2020 年"}, ensure_ascii=False)
         return json.dumps({"verdict": "confirmed", "reason": "官方披露一致"}, ensure_ascii=False)
 
 
@@ -732,9 +704,7 @@ async def test_review_edit_forces_reverification(tmp_path: Path) -> None:
     第二次 merge 必须重新核验并拦下证伪断言（修复前：第二次直接放行，2099 进报告）。"""
     ws = make_ws(tmp_path, {CLEAN_CH: CHAPTER_2020})
     stub = _ReviewCorruptsYear()
-    mw = ChapterGateMiddleware(
-        ws, model_access=stub, verify_search=_search_ok, verify_fetch=_fetch_ok
-    )
+    mw = ChapterGateMiddleware(ws, model_access=stub, verify_search=_search_ok, verify_fetch=_fetch_ok)
     mw._verify_backoff = 0
     await _stats(mw, f"chapters/{CLEAN_CH}")
     assert mw._chapters[CLEAN_CH].verified == "passed"
@@ -806,18 +776,14 @@ class _UnverifiableModel:
             return '{"edits": [], "doubts": []}'
         if "抽取" in system:
             return '{"assertions": []}'
-        return json.dumps(
-            {"verdict": "unverifiable", "reason": "公开检索无相关信息"}, ensure_ascii=False
-        )
+        return json.dumps({"verdict": "unverifiable", "reason": "公开检索无相关信息"}, ensure_ascii=False)
 
 
 async def test_unverifiable_blocks_merge_until_marked(tmp_path: Path) -> None:
     """终审复现：查无实证仅进 verify_notes、verified=passed，补审校后四次 merge 均成功。
     修复后：notes 未清零 merge 硬失败；标注 [待核实] 并复测重核后放行。"""
     ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ})
-    mw = ChapterGateMiddleware(
-        ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok
-    )
+    mw = ChapterGateMiddleware(ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok)
     mw._verify_backoff = 0
     out = await _stats(mw, f"chapters/{UNVERIFIABLE_CH}")
     st = mw._chapters[UNVERIFIABLE_CH]
@@ -850,11 +816,142 @@ async def test_ledger_assertion_cleared_when_body_marked(tmp_path: Path) -> None
     """终审复验复现：正文已标 [待核实]，但台账反查断言「收购事项：未披露」字符串
     不含标注仍入 verify_notes，merge 继续被拦。修复后：正文已处置的同断言出队放行。"""
     ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ_MARKED}, ledger=LEDGER_WITH_ACQ)
-    mw = ChapterGateMiddleware(
-        ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok
-    )
+    mw = ChapterGateMiddleware(ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok)
     mw._verify_backoff = 0
     await _stats(mw, f"chapters/{UNVERIFIABLE_CH}")
     assert mw._chapters[UNVERIFIABLE_CH].verify_notes == []
     ok = await _merge_call(mw)
     assert ok.status != "error"
+
+
+# ---------------------------------------------------------------------------
+# round-7 实证修复（2026-11-05）：核验成本失控
+# F1 已过章不重复核；F2 断言级判定缓存；F3 垃圾断言过滤 + 章级总量封顶
+# ---------------------------------------------------------------------------
+
+LISTING_SENT = "欧普照明于 2020 年在上海证券交易所主板上市[1]。"
+KW_CHAPTER = LISTING_SENT + "\n" + CLEAN_LONG + _REF_SECTION
+
+
+class _CountingJudge:
+    """计数桩：抽取空清单（走关键词通路）；判定 confirmed 并记录提示词；审校空编辑。"""
+
+    def __init__(self) -> None:
+        self.judge_prompts: list[str] = []
+        self.extract_calls = 0
+
+    async def ainvoke_text(self, prompt: str, **kwargs: object) -> str:
+        system = str(kwargs.get("system") or "")
+        if "审校" in system:
+            return '{"edits": [], "doubts": []}'
+        if "抽取" in system:
+            self.extract_calls += 1
+            return '{"assertions": []}'
+        self.judge_prompts.append(prompt)
+        return '{"verdict": "confirmed", "reason": "来源一致"}'
+
+
+def _make_counting_gate(ws: Path, judge: _CountingJudge) -> ChapterGateMiddleware:
+    mw = ChapterGateMiddleware(ws, model_access=judge, verify_search=_search_ok, verify_fetch=_fetch_ok)
+    mw._verify_backoff = 0
+    return mw
+
+
+async def test_passed_chapter_not_reverified_on_repeat_stats(tmp_path: Path) -> None:
+    """round-7 复现：模型每调一次 report_stats 就整章重核（ch2 重复判定占 31%）。
+    修复后：verified=passed 且文本未编辑（编辑即清保证）→ 复测不再触发核验。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: KW_CHAPTER})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert mw._chapters[CLEAN_CH].verified == "passed"
+    assert len(judge.judge_prompts) == 1
+    await _stats(mw, f"chapters/{CLEAN_CH}")  # 未编辑复测
+    assert len(judge.judge_prompts) == 1  # 修复前 = 2（整章重核）
+    assert judge.extract_calls == 1
+
+
+async def test_passed_chapter_with_doubts_reverified(tmp_path: Path) -> None:
+    """F1 的例外：审校回流疑点未核时，passed 章仍须重核（疑点不能被跳过）。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: KW_CHAPTER})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 1
+    mw._enqueue_doubts(CLEAN_CH, ["收购对价是否包含少数股东权益"])
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert any("少数股东权益" in p for p in judge.judge_prompts)  # 疑点被核验
+    assert mw._read_doubts(CLEAN_CH) == []  # 核验成功后疑点出队
+
+
+async def test_verdict_cache_reused_after_edit(tmp_path: Path) -> None:
+    """round-7 复现：编辑即清 → 全章重核，同一断言最多重复核 10 次。
+    修复后：断言文本未变的判定走缓存，重核只核新断言。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: KW_CHAPTER})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 1
+    # 编辑章（加一句无关键词定性描述，断言句原样保留）→ 状态清零 → 复测重核
+    (ws / "chapters" / CLEAN_CH).write_text(KW_CHAPTER + "补充一句定性描述。\n", encoding="utf-8")
+    await _write(mw, "edit_file", f"chapters/{CLEAN_CH}")
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert mw._chapters[CLEAN_CH].verified == "passed"
+    assert len(judge.judge_prompts) == 1  # 缓存命中；修复前 = 2
+
+
+async def test_verdict_cache_persists_across_restart(tmp_path: Path) -> None:
+    """判定缓存落盘（verification_cache.json），server 重启后新实例仍命中。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: KW_CHAPTER})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert (ws / "verification_cache.json").is_file()
+    mw2 = _make_counting_gate(ws, judge)  # 新实例 = 重启
+    (ws / "chapters" / CLEAN_CH).write_text(KW_CHAPTER + "重启后补充一句。\n", encoding="utf-8")
+    await _write(mw2, "edit_file", f"chapters/{CLEAN_CH}")
+    await _stats(mw2, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 1  # 重启后仍缓存命中
+
+
+async def test_verdict_cache_miss_on_changed_assertion(tmp_path: Path) -> None:
+    """断言文本变了（年份 2020→2021）必须重新核验，不得吃旧缓存。"""
+    ws = make_ws(tmp_path, {CLEAN_CH: KW_CHAPTER})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    changed = KW_CHAPTER.replace("2020", "2021")
+    (ws / "chapters" / CLEAN_CH).write_text(changed, encoding="utf-8")
+    await _write(mw, "edit_file", f"chapters/{CLEAN_CH}")
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 2
+    assert any("2021" in p for p in judge.judge_prompts)
+
+
+async def test_junk_assertions_not_verified(tmp_path: Path) -> None:
+    """round-7 复现：表格行/标题被当断言核验（必然 unverifiable，纯烧调用）。
+    修复后：版式碎片不进入核验。"""
+    junk_chapter = (
+        "| 收购标的 | 对价 |\n| --- | --- |\n| 某企业 | 1 亿元 |\n"
+        "## 3.2 上市历程\n" + LISTING_SENT + "\n" + CLEAN_LONG + _REF_SECTION
+    )
+    ws = make_ws(tmp_path, {CLEAN_CH: junk_chapter})
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 1  # 只剩 LISTING_SENT 一条真断言
+    assert "上海证券交易所" in judge.judge_prompts[0]
+    log = (ws / "verification_log.jsonl").read_text(encoding="utf-8")
+    assert "收购标的" not in log  # 表格行未入核验
+    assert "上市历程" not in log  # 标题未入核验
+
+
+async def test_chapter_assertions_capped(tmp_path: Path) -> None:
+    """round-7 复现：ch2 去重后仍有 180 条断言（多次抽取叠加无总量封顶）。
+    修复后：章级核验总量封顶 40 条（疑点优先，尾部丢弃留日志）。"""
+    big_ledger = LEDGER + "".join(f"| 收购事件{i} | {i}00 万元 | — | — | 公告 | 03 |\n" for i in range(50))
+    ws = make_ws(tmp_path, {CLEAN_CH: CLEAN_TEXT}, ledger=big_ledger)
+    judge = _CountingJudge()
+    mw = _make_counting_gate(ws, judge)
+    await _stats(mw, f"chapters/{CLEAN_CH}")
+    assert len(judge.judge_prompts) == 40  # 修复前 = 50

@@ -15,9 +15,7 @@ from octop_harness.middleware.patient_retry import _logging_retry_on
 
 
 def _resp(content="", tool_calls=None):
-    return ModelResponse(
-        result=[AIMessage(content=content, tool_calls=tool_calls or [])]
-    )
+    return ModelResponse(result=[AIMessage(content=content, tool_calls=tool_calls or [])])
 
 
 async def test_guard_raises_on_empty_content():

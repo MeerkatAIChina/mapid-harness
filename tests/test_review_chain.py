@@ -90,7 +90,10 @@ def test_out_of_range_line_skipped() -> None:
 
 
 def test_parse_review_response_filters_invalid() -> None:
-    raw = '```json\n{"edits": [{"line": 2, "new": "好", "reason": "r"}, {"line": 0, "new": "坏"}, {"line": 3, "new": "' + "长" * 301 + '"}], "doubts": ["营收口径存疑"]}\n```'
+    raw = (
+        '```json\n{"edits": [{"line": 2, "new": "好", "reason": "r"}, {"line": 0, "new": "坏"}, '
+        '{"line": 3, "new": "' + "长" * 301 + '"}], "doubts": ["营收口径存疑"]}\n```'
+    )
     edits, doubts = parse_review_response(raw)
     assert [e.line for e in edits] == [2]  # 行 0 与超长编辑被过滤
     assert doubts == ["营收口径存疑"]

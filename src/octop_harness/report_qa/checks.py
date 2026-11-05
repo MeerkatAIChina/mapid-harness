@@ -11,11 +11,6 @@ from datetime import date
 from pathlib import Path
 from typing import TypedDict
 
-from octop_harness.report_qa.numparse import (
-    extract_spans,
-    spans_support,
-    values_compatible,
-)
 from octop_harness.report_qa.citations import (
     CITATION_REF_RE,
     extract_citation_refs,
@@ -53,6 +48,12 @@ from octop_harness.report_qa.constants import (
     TEMPLATE_MIN_TEMPLATED_COLS,
     TODO_MARK,
     WORD_COUNT_TOLERANCE,
+)
+from octop_harness.report_qa.numparse import (
+    NumSpan,
+    extract_spans,
+    spans_support,
+    values_compatible,
 )
 
 
@@ -277,8 +278,7 @@ def _check_template_burst(workspace: Path, path: Path, lines: list[str]) -> list
                     SEVERITY_HIGH,
                     _rel(workspace, path),
                     burst_at,
-                    f"检测到模板爆破：表块内第 {burst_at} 行起连续 "
-                    f"{TEMPLATE_BURST_MIN_ROWS}+ 行表格仅局部后缀不同",
+                    f"检测到模板爆破：表块内第 {burst_at} 行起连续 {TEMPLATE_BURST_MIN_ROWS}+ 行表格仅局部后缀不同",
                     lines[burst_at - 1].strip(),
                 )
             )
@@ -296,9 +296,7 @@ def _check_identical_lines(workspace: Path, path: Path, lines: list[str]) -> lis
         if idx - 1 in fence_lines:
             continue
         norm = re.sub(r"\s+", "", line)
-        is_table_header = (
-            _is_table_line(line) and idx < len(lines) and _is_separator_row(lines[idx])
-        )
+        is_table_header = _is_table_line(line) and idx < len(lines) and _is_separator_row(lines[idx])
         if (
             len(norm) < IDENTICAL_LINE_MIN_CHARS
             or _is_separator_row(line)
@@ -434,8 +432,7 @@ def check_word_count(workspace: Path) -> list[Finding]:
                     SEVERITY_MEDIUM,
                     file,
                     1,
-                    f"GD-13 字数自报失真：{label}自报 {claimed:,}，实测非空白字符 {actual:,}，"
-                    f"偏差 {deviation:.0%}",
+                    f"GD-13 字数自报失真：{label}自报 {claimed:,}，实测非空白字符 {actual:,}，偏差 {deviation:.0%}",
                     f"claimed={claimed}, measured={actual}",
                 )
             )
@@ -476,9 +473,7 @@ def check_ledger_schema(workspace: Path) -> list[Finding]:
         if _header_covers(header):
             return []
     missing_hint = (
-        f"未找到包含全部必需列（{'|'.join(LEDGER_FIELDS)}）的表头"
-        if tables
-        else "台账中没有结构化表格（自由文本台账）"
+        f"未找到包含全部必需列（{'|'.join(LEDGER_FIELDS)}）的表头" if tables else "台账中没有结构化表格（自由文本台账）"
     )
     return [
         _finding(
@@ -537,9 +532,7 @@ def check_ledger_freshness(workspace: Path) -> list[Finding]:
                 i
                 for i, line in enumerate(lines, start=1)
                 if TODO_MARK not in line
-                and any(
-                    not _is_word_count_decl(line, m) for m in PRECISE_VALUE_RE.findall(line)
-                )
+                and any(not _is_word_count_decl(line, m) for m in PRECISE_VALUE_RE.findall(line))
             ),
             None,
         )
@@ -581,9 +574,7 @@ def check_unsourced_precise(workspace: Path) -> list[Finding]:
         for i, line in enumerate(lines):
             if _is_separator_row(line):
                 continue
-            matches = [
-                m for m in PRECISE_VALUE_RE.findall(line) if not _is_word_count_decl(line, m)
-            ]
+            matches = [m for m in PRECISE_VALUE_RE.findall(line) if not _is_word_count_decl(line, m)]
             if not matches:
                 continue
             fence = next(((s, e) for s, e in fences if s < i < e), None)
@@ -595,11 +586,7 @@ def check_unsourced_precise(workspace: Path) -> list[Finding]:
                 hi = min(len(lines), i + SOURCE_WINDOW_LINES + 1)
             window = "\n".join(lines[lo:hi])
             # 双样式永久并存（设计文档_R4 §2.2）：旧式来源署名与新式 [n] 引用都合法
-            if (
-                SOURCE_RE.search(window)
-                or CITATION_REF_RE.search(window)
-                or TODO_MARK in window
-            ):
+            if SOURCE_RE.search(window) or CITATION_REF_RE.search(window) or TODO_MARK in window:
                 continue
             findings.append(
                 _finding(
@@ -649,14 +636,8 @@ def check_numeric_consistency(workspace: Path) -> list[Finding]:
         for lineno, cells in rows:
             if name_idx >= len(cells) or value_idx >= len(cells):
                 continue
-            caliber = (
-                cells[caliber_idx].strip()
-                if caliber_idx is not None and caliber_idx < len(cells)
-                else ""
-            )
-            rows_by_name.setdefault(cells[name_idx], []).append(
-                (caliber, cells[value_idx], lineno)
-            )
+            caliber = cells[caliber_idx].strip() if caliber_idx is not None and caliber_idx < len(cells) else ""
+            rows_by_name.setdefault(cells[name_idx], []).append((caliber, cells[value_idx], lineno))
     findings: list[Finding] = []
     for name, items in rows_by_name.items():
         # 口径兼容聚类：「2024年报」⊂「2024年报实算（…）」视为同口径（GD-09 型），
@@ -725,14 +706,9 @@ def check_figure_companion(workspace: Path) -> list[Finding]:
             lo = max(0, start - FIGURE_WINDOW_LINES)
             hi = min(len(lines), end + FIGURE_WINDOW_LINES + 1)
             window = "\n".join(lines[lo:hi])
-            has_source = (
-                SOURCE_RE.search(window) is not None
-                or CITATION_REF_RE.search(window) is not None
-            )
+            has_source = SOURCE_RE.search(window) is not None or CITATION_REF_RE.search(window) is not None
             has_commentary = any(
-                lines[j].strip()
-                and not _is_table_line(lines[j])
-                and not lines[j].strip().startswith("```")
+                lines[j].strip() and not _is_table_line(lines[j]) and not lines[j].strip().startswith("```")
                 for j in range(end + 1, min(len(lines), end + FIGURE_WINDOW_LINES + 1))
             )
             missing = []
@@ -783,9 +759,7 @@ def _check_dates(workspace: Path) -> list[Finding]:
         path = workspace / name
         if not path.is_file():
             continue
-        stale = sorted(
-            {d for d in _find_dates(_read(path)) if abs((today - d).days) > DATE_SKEW_MAX_DAYS}
-        )
+        stale = sorted({d for d in _find_dates(_read(path)) if abs((today - d).days) > DATE_SKEW_MAX_DAYS})
         if stale:
             findings.append(
                 _finding(
@@ -818,11 +792,7 @@ def check_structure(workspace: Path) -> list[Finding]:
         )
         return findings + _check_dates(workspace)
 
-    numbered = [
-        num
-        for num, path in chapters
-        if num > 0 and _non_ws(_read(path)) >= SHELL_CHAPTER_MIN_CHARS
-    ]
+    numbered = [num for num, path in chapters if num > 0 and _non_ws(_read(path)) >= SHELL_CHAPTER_MIN_CHARS]
     if numbered:
         missing = sorted(set(range(min(numbered), max(numbered) + 1)) - set(numbered))
         if missing:
@@ -898,7 +868,7 @@ def check_conclusion_source(workspace: Path) -> list[Finding]:
         return []
     _, conclusion_path = conclusions[0]
 
-    chapter_spans: dict[int, list] = {}
+    chapter_spans: dict[int, list[NumSpan]] = {}
     for num, path in chapter_files:
         if path == conclusion_path or num == 0:
             continue
@@ -1039,9 +1009,7 @@ def check_citation_cross_chapter(workspace: Path) -> list[Finding]:
         variants = by_num[n]
         if len(variants) < 2:
             continue
-        usage = "；".join(
-            f"{files[0]} 指「{text[:40]}」" for text, files in sorted(variants.items())
-        )
+        usage = "；".join(f"{files[0]} 指「{text[:40]}」" for text, files in sorted(variants.items()))
         anchor_file = sorted(variants.items())[1][1][0]
         findings.append(
             _finding(
@@ -1064,8 +1032,7 @@ def check_citation_cross_chapter(workspace: Path) -> list[Finding]:
                 SEVERITY_HIGH,
                 anchor_file,
                 0,
-                f"跨章同源异号：同一来源「{text[:40]}」使用多个编号（{usage}），"
-                "同一来源全书须固定一个号",
+                f"跨章同源异号：同一来源「{text[:40]}」使用多个编号（{usage}），同一来源全书须固定一个号",
                 text[:60],
             )
         )
@@ -1095,8 +1062,7 @@ def check_ledger_ref_duplicate(workspace: Path) -> list[Finding]:
                 SEVERITY_HIGH,
                 LEDGER_FILENAME,
                 0,
-                f"重复取号：ref={ref} 登记了 {len(names)} 个不同指标"
-                f"（{'、'.join(names[:3])}），同号即同源",
+                f"重复取号：ref={ref} 登记了 {len(names)} 个不同指标（{'、'.join(names[:3])}），同号即同源",
                 f"ref={ref}",
             )
         )
@@ -1144,8 +1110,16 @@ _REDUNDANCY_MIN_PARA_CHARS = 30
 _ENTITY_RUN_RE = re.compile(r"[一-鿿]{4,}")
 # 通用短语不算主体（防误报）
 _ENTITY_STOPLIST = {
-    "数据来源", "本章参考", "参考资料", "参考文献", "同比增长", "数据显示",
-    "由此可见", "总体来看", "值得注意的是", "进一步分析",
+    "数据来源",
+    "本章参考",
+    "参考资料",
+    "参考文献",
+    "同比增长",
+    "数据显示",
+    "由此可见",
+    "总体来看",
+    "值得注意的是",
+    "进一步分析",
 }
 
 
@@ -1158,13 +1132,7 @@ def _entity_runs(line: str) -> list[str]:
 
 
 def _shares_entity(a: str, b: str, runs_a: list[str], runs_b: list[str]) -> bool:
-    for ra in runs_a:
-        if ra in b:
-            return True
-    for rb in runs_b:
-        if rb in a:
-            return True
-    return False
+    return any(ra in b for ra in runs_a) or any(rb in a for rb in runs_b)
 
 
 def check_intra_chapter_redundancy(workspace: Path) -> list[Finding]:

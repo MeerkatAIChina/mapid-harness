@@ -122,7 +122,7 @@ class TestExtractSpans:
         assert any("30" in r for r in raws)
         assert any("70.96" in r for r in raws)
         assert not any("2021" in r for r in raws)
-        assert not any("2024" == r.strip() for r in raws)
+        assert not any(r.strip() == "2024" for r in raws)
 
     def test_keeps_non_year_numbers(self) -> None:
         spans = extract_spans("净现金 53–57 亿元，网点 6,000–8,000 家")
@@ -174,6 +174,7 @@ class TestSpansSupport:
     def test_modifier_ignored_support(self) -> None:
         """修饰语不影响同值判定：「39.19」=「约 39.19%」。"""
         assert spans_support(_span(39.19, 39.19, "39.19"), _span(39.19, 39.19, "约 39.19%"))
+
 
 # ---------------------------------------------------------------------------
 # GD-26 负号盲区（设计文档_R4 §8，调研 R-1）

@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
 """专业报告渲染器：离线 ECharts HTML + 可导航 Word，PDF 复用 doc_tools。"""
+
+from __future__ import annotations
+
 import base64
 import io
 import json
+import os as _os
 import re
 from pathlib import Path
+from typing import Any
 
-import os as _os
+from octop_harness.pipeline.charts import validate_chart
+from octop_harness.pipeline.doc_tools import (
+    _chart_to_png,
+    _escape_html,
+    _extract_title,
+    _inline_to_html,
+    _math_assets,
+    _parse_blocks,
+    _parse_table_rows,
+    _strip_inline,
+)
+from octop_harness.pipeline.doc_tools import convert as legacy_convert
 
 _BRAND = _os.environ.get("LONG_REPORT_BRAND", "Meerkat AI · 专业报告")
-from octop_harness.pipeline.charts import validate_chart
-from octop_harness.pipeline.doc_tools import (_parse_blocks, _extract_title, _strip_inline, _inline_to_html,
-                       _escape_html, _parse_table_rows, _chart_to_png, _math_assets,
-                       convert as legacy_convert)
 
 ASSETS = Path(__file__).parent / "assets"
 PALETTE = ["#2F5D7C", "#4E8A75", "#C08A3E", "#8A6FA3", "#A85454", "#4D7EA8"]
@@ -28,80 +40,161 @@ main{min-width:0;background:#fff;border:1px solid var(--border);border-radius:12
 """
 
 
-def chart_option(chart):
+def chart_option(chart: dict[str, Any]) -> dict[str, Any]:
     ctype = chart.get("type", "bar")
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     if not series and ctype not in ("graph", "flow"):
         return {"title": {"text": chart.get("title") or "", "left": "center"}, "series": []}
     unit = chart.get("unit") or chart.get("y_label") or ""
-    option = {
+    option: dict[str, Any] = {
         "color": PALETTE,
         "backgroundColor": "transparent",
-        "title": {"text": chart.get("title") or "", "left": "center", "textStyle": {"fontSize": 16, "color": "#2F5D7C"}},
+        "title": {
+            "text": chart.get("title") or "",
+            "left": "center",
+            "textStyle": {"fontSize": 16, "color": "#2F5D7C"},
+        },
         "tooltip": {"trigger": "item" if ctype in ("pie", "donut", "funnel", "gauge") else "axis"},
         "legend": {"bottom": 0, "type": "scroll"},
         "grid": {"left": 60, "right": 28, "top": 58, "bottom": 64, "containLabel": True},
     }
     if ctype in ("pie", "donut"):
-        option["series"] = [{"name": series[0].get("name", "数值") if series else "数值", "type": "pie",
-            "radius": ["38%", "68%"] if ctype == "donut" else "68%", "center": ["50%", "54%"],
-            "data": [{"name": c, "value": v} for c, v in zip(cats, series[0].get("data", []))],
-            "label": {"formatter": "{b}: {c} ({d}%)"}}]
+        option["series"] = [
+            {
+                "name": series[0].get("name", "数值") if series else "数值",
+                "type": "pie",
+                "radius": ["38%", "68%"] if ctype == "donut" else "68%",
+                "center": ["50%", "54%"],
+                "data": [{"name": c, "value": v} for c, v in zip(cats, series[0].get("data", []), strict=False)],
+                "label": {"formatter": "{b}: {c} ({d}%)"},
+            }
+        ]
     elif ctype == "radar":
         option["radar"] = {"indicator": [{"name": c, "max": chart.get("max", 5)} for c in cats]}
-        option["series"] = [{"name": "多方案对比", "type": "radar",
-            "data": [{"name": s.get("name", f"系列{i+1}"), "value": s.get("data", []),
-                      "areaStyle": {"opacity": 0.12}} for i, s in enumerate(series)],
-            "label": {"show": False}}]
+        option["series"] = [
+            {
+                "name": "多方案对比",
+                "type": "radar",
+                "data": [
+                    {"name": s.get("name", f"系列{i + 1}"), "value": s.get("data", []), "areaStyle": {"opacity": 0.12}}
+                    for i, s in enumerate(series)
+                ],
+                "label": {"show": False},
+            }
+        ]
     elif ctype == "flow":
         option["tooltip"] = {"trigger": "item"}
-        option["series"] = [{"type": "graph", "layout": "none", "roam": False,
-            "symbol": "roundRect", "symbolSize": [125, 55], "edgeSymbol": ["none", "arrow"],
-            "label": {"show": True, "fontSize": 12}, "edgeLabel": {"show": False},
-            "data": [{"name": c, "x": i * 180, "y": 160, "itemStyle": {"color": PALETTE[i % len(PALETTE)]}}
-                     for i, c in enumerate(cats)],
-            "links": [{"source": cats[i], "target": cats[i + 1]} for i in range(len(cats) - 1)]}]
+        option["series"] = [
+            {
+                "type": "graph",
+                "layout": "none",
+                "roam": False,
+                "symbol": "roundRect",
+                "symbolSize": [125, 55],
+                "edgeSymbol": ["none", "arrow"],
+                "label": {"show": True, "fontSize": 12},
+                "edgeLabel": {"show": False},
+                "data": [
+                    {"name": c, "x": i * 180, "y": 160, "itemStyle": {"color": PALETTE[i % len(PALETTE)]}}
+                    for i, c in enumerate(cats)
+                ],
+                "links": [{"source": cats[i], "target": cats[i + 1]} for i in range(len(cats) - 1)],
+            }
+        ]
     elif ctype == "graph":
         # R-3 语义统一：以 matplotlib 预设坐标为准（validate 已强制 nodes 带 x/y），
         # ECharts 端改固定布局，不再 force 自动布局（两端同一语义）。
         option["tooltip"] = {"trigger": "item"}
-        option["series"] = [{"type": "graph", "layout": "none", "roam": True,
-            "symbol": "roundRect", "symbolSize": [105, 48],
-            "edgeSymbol": ["none", "arrow"], "label": {"show": True, "fontSize": 11},
-            "data": [{"name": n["name"], "x": n.get("x", 0), "y": n.get("y", 0),
-                      "itemStyle": {"color": PALETTE[i % len(PALETTE)]}}
-                     for i, n in enumerate(chart.get("nodes", []))],
-            "links": [{"source": link["source"], "target": link["target"],
-                       "label": {"show": True, "formatter": link.get("label", ""), "fontSize": 9}}
-                      for link in chart.get("links", [])]}]
+        option["series"] = [
+            {
+                "type": "graph",
+                "layout": "none",
+                "roam": True,
+                "symbol": "roundRect",
+                "symbolSize": [105, 48],
+                "edgeSymbol": ["none", "arrow"],
+                "label": {"show": True, "fontSize": 11},
+                "data": [
+                    {
+                        "name": n["name"],
+                        "x": n.get("x", 0),
+                        "y": n.get("y", 0),
+                        "itemStyle": {"color": PALETTE[i % len(PALETTE)]},
+                    }
+                    for i, n in enumerate(chart.get("nodes", []))
+                ],
+                "links": [
+                    {
+                        "source": link["source"],
+                        "target": link["target"],
+                        "label": {"show": True, "formatter": link.get("label", ""), "fontSize": 9},
+                    }
+                    for link in chart.get("links", [])
+                ],
+            }
+        ]
     elif ctype == "heatmap":
         values = [point[2] for point in chart.get("heat_data", [])]
         option["tooltip"] = {"trigger": "item"}
         option["xAxis"] = {"type": "category", "data": cats}
         option["yAxis"] = {"type": "category", "data": [s.get("name", "") for s in series]}
-        option["visualMap"] = {"min": min(values), "max": max(values), "calculable": True,
-                               "orient": "horizontal", "left": "center", "bottom": 0,
-                               "inRange": {"color": ["#EEF3F6", "#73A6B8", "#2F5D7C"]}}
-        option["series"] = [{"type": "heatmap", "data": chart.get("heat_data", []),
-                             "label": {"show": True}, "emphasis": {"itemStyle": {"shadowBlur": 8}}}]
+        option["visualMap"] = {
+            "min": min(values),
+            "max": max(values),
+            "calculable": True,
+            "orient": "horizontal",
+            "left": "center",
+            "bottom": 0,
+            "inRange": {"color": ["#EEF3F6", "#73A6B8", "#2F5D7C"]},
+        }
+        option["series"] = [
+            {
+                "type": "heatmap",
+                "data": chart.get("heat_data", []),
+                "label": {"show": True},
+                "emphasis": {"itemStyle": {"shadowBlur": 8}},
+            }
+        ]
     elif ctype == "scatter":
         option["tooltip"] = {"trigger": "item"}
         option["xAxis"] = {"type": "value", "name": chart.get("x_label", "")}
         option["yAxis"] = {"type": "value", "name": chart.get("y_label", "")}
-        option["series"] = [{"name": s.get("name", "方案"), "type": "scatter", "data": s.get("data", []),
-                             "symbolSize": 18, "label": {"show": True, "formatter": "{@[3]}", "position": "top"}}
-                            for s in series]
+        option["series"] = [
+            {
+                "name": s.get("name", "方案"),
+                "type": "scatter",
+                "data": s.get("data", []),
+                "symbolSize": 18,
+                "label": {"show": True, "formatter": "{@[3]}", "position": "top"},
+            }
+            for s in series
+        ]
     elif ctype == "funnel":
-        option["series"] = [{"name": series[0].get("name", "数值") if series else "数值", "type": "funnel",
-            "left": "12%", "width": "72%", "sort": "descending",
-            "data": [{"name": c, "value": v} for c, v in zip(cats, series[0].get("data", []))],
-            "label": {"show": True, "position": "inside"}}]
+        option["series"] = [
+            {
+                "name": series[0].get("name", "数值") if series else "数值",
+                "type": "funnel",
+                "left": "12%",
+                "width": "72%",
+                "sort": "descending",
+                "data": [{"name": c, "value": v} for c, v in zip(cats, series[0].get("data", []), strict=False)],
+                "label": {"show": True, "position": "inside"},
+            }
+        ]
     elif ctype == "gauge":
         value = series[0].get("data", [0])[0] if series and series[0].get("data") else 0
-        option["series"] = [{"name": chart.get("title") or "指标", "type": "gauge", "min": chart.get("min", 0),
-            "max": chart.get("max", 100), "progress": {"show": True}, "detail": {"formatter": "{value}" + unit},
-            "data": [{"value": value, "name": chart.get("title") or "指标"}]}]
+        option["series"] = [
+            {
+                "name": chart.get("title") or "指标",
+                "type": "gauge",
+                "min": chart.get("min", 0),
+                "max": chart.get("max", 100),
+                "progress": {"show": True},
+                "detail": {"formatter": "{value}" + unit},
+                "data": [{"value": value, "name": chart.get("title") or "指标"}],
+            }
+        ]
     else:
         x = {"type": "category", "data": cats, "axisLabel": {"interval": 0, "rotate": 24 if len(cats) > 6 else 0}}
         y = {"type": "value", "name": unit}
@@ -110,29 +203,38 @@ def chart_option(chart):
         option["xAxis"] = x
         option["yAxis"] = y
         e_type = "bar" if ctype in ("bar", "barh") else "line"
-        option["series"] = [{"name": s.get("name", f"系列{i+1}"), "type": e_type,
-            "data": s.get("data", []), "smooth": ctype in ("line", "area"),
-            "areaStyle": {"opacity": 0.18} if ctype == "area" else None,
-            "label": {"show": True, "position": "top" if ctype in ("bar", "barh") else "outside"},
-            "symbolSize": 8 if ctype == "scatter" else 6} for i, s in enumerate(series)]
+        option["series"] = [
+            {
+                "name": s.get("name", f"系列{i + 1}"),
+                "type": e_type,
+                "data": s.get("data", []),
+                "smooth": ctype in ("line", "area"),
+                "areaStyle": {"opacity": 0.18} if ctype == "area" else None,
+                "label": {"show": True, "position": "top" if ctype in ("bar", "barh") else "outside"},
+                "symbolSize": 8 if ctype == "scatter" else 6,
+            }
+            for i, s in enumerate(series)
+        ]
         option["series"] = [{k: v for k, v in s.items() if v is not None} for s in option["series"]]
     return option
 
 
-def md_to_html(md_text, output_path):
+def md_to_html(md_text: str, output_path: str | Path) -> str | Path:
     blocks = _parse_blocks(md_text)
     title = _extract_title(blocks)
     toc = [(p[0], _strip_inline(p[1])) for t, p in blocks if t == "heading" and p[0] <= 2]
-    parts = ["<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">",
-             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">",
-             f"<title>{_escape_html(title)}</title><style>{CSS}</style></head><body>",
-             f"<header class=\"cover\"><h1>{_escape_html(title)}</h1><p class=\"subtitle\">{_escape_html(_BRAND)}</p><span class=\"meta\">自包含 HTML · 离线交互图表</span></header>",
-             "<div class=\"layout\">"]
+    parts = [
+        '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width,initial-scale=1">',
+        f"<title>{_escape_html(title)}</title><style>{CSS}</style></head><body>",
+        f'<header class="cover"><h1>{_escape_html(title)}</h1><p class="subtitle">{_escape_html(_BRAND)}</p><span class="meta">自包含 HTML · 离线交互图表</span></header>',
+        '<div class="layout">',
+    ]
     if len(toc) >= 3:
-        parts.append("<nav class=\"toc\" aria-label=\"目录\"><h2>目录</h2><ul>")
+        parts.append('<nav class="toc" aria-label="目录"><h2>目录</h2><ul>')
         for i, (lvl, txt) in enumerate(toc):
             cls = "lvl2" if lvl == 2 else ""
-            parts.append(f"<li><a class=\"{cls}\" href=\"#sec-{i}\">{_escape_html(txt)}</a></li>")
+            parts.append(f'<li><a class="{cls}" href="#sec-{i}">{_escape_html(txt)}</a></li>')
         parts.append("</ul></nav>")
     parts.append("<main>")
     h_idx = 0
@@ -143,7 +245,9 @@ def md_to_html(md_text, output_path):
             anchor = f"sec-{h_idx}" if lvl <= 2 else ""
             if anchor:
                 h_idx += 1
-            parts.append(f"<h{min(lvl,6)}{' id=\"'+anchor+'\"' if anchor else ''}>{_inline_to_html(txt)}</h{min(lvl,6)}>")
+            parts.append(
+                f"<h{min(lvl, 6)}{' id="' + anchor + '"' if anchor else ''}>{_inline_to_html(txt)}</h{min(lvl, 6)}>"
+            )
         elif typ == "para":
             parts.append(f"<p>{_inline_to_html(payload)}</p>")
         elif typ == "list":
@@ -159,12 +263,14 @@ def md_to_html(md_text, output_path):
             parts.append(f"<pre><code>{_escape_html(payload)}</code></pre>")
         elif typ == "image":
             alt, fmt, b64 = payload
-            parts.append(f"<img src=\"data:image/{fmt};base64,{b64}\" alt=\"{_escape_html(alt)}\">")
+            parts.append(f'<img src="data:image/{fmt};base64,{b64}" alt="{_escape_html(alt)}">')
         elif typ == "table":
             header, data = _parse_table_rows(payload)
             parts.append("<table>")
             if header:
-                parts.append("<thead><tr>" + "".join(f"<th>{_inline_to_html(c)}</th>" for c in header) + "</tr></thead>")
+                parts.append(
+                    "<thead><tr>" + "".join(f"<th>{_inline_to_html(c)}</th>" for c in header) + "</tr></thead>"
+                )
             parts.append("<tbody>")
             for row in data:
                 parts.append("<tr>" + "".join(f"<td>{_inline_to_html(c)}</td>" for c in row) + "</tr>")
@@ -173,25 +279,29 @@ def md_to_html(md_text, output_path):
             chart_count += 1
             cid = f"chart-{chart_count}"
             title_text = _escape_html(payload.get("title") or f"图表 {chart_count}")
-            parts.append(f"<figure class=\"figure\"><div id=\"{cid}\" class=\"chart\" role=\"img\" aria-label=\"{title_text}\"></div><figcaption class=\"chart-caption\">{title_text}</figcaption></figure>")
+            parts.append(
+                f'<figure class="figure"><div id="{cid}" class="chart" role="img" aria-label="{title_text}"></div><figcaption class="chart-caption">{title_text}</figcaption></figure>'
+            )
     parts.append("</main></div>")
     bundle = ASSETS / "echarts.min.js"
     if chart_count and bundle.exists():
         parts.append(f"<script>{bundle.read_text(encoding='utf-8')}</script>")
         options = [chart_option(payload) for typ, payload in blocks if typ == "chart"]
-        parts.append(f"<script>document.addEventListener('DOMContentLoaded',function(){{const options={json.dumps(options, ensure_ascii=False)};document.querySelectorAll('.chart').forEach(function(el,i){{const c=echarts.init(el,null,null,{{renderer:'canvas'}});c.setOption(options[i]);window.addEventListener('resize',function(){{c.resize()}});}});}});</script>")
+        parts.append(
+            f"<script>document.addEventListener('DOMContentLoaded',function(){{const options={json.dumps(options, ensure_ascii=False)};document.querySelectorAll('.chart').forEach(function(el,i){{const c=echarts.init(el,null,null,{{renderer:'canvas'}});c.setOption(options[i]);window.addEventListener('resize',function(){{c.resize()}});}});}});</script>"
+        )
     parts.append("</body></html>")
     html = "\n".join(parts)
     Path(output_path).write_text(html, encoding="utf-8")
     return output_path
 
 
-def md_to_docx(md_text, output_path):
+def md_to_docx(md_text: str, output_path: str | Path) -> str | Path:
     from docx import Document
-    from docx.shared import Pt, Inches, RGBColor, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
+    from docx.shared import Cm, Inches, Pt, RGBColor
 
     blocks = _parse_blocks(md_text)
     title = _extract_title(blocks)
@@ -221,7 +331,7 @@ def md_to_docx(md_text, output_path):
     doc.add_heading(title, 0)
     doc.add_paragraph(_os.environ.get("LONG_REPORT_AUDIENCE", "专业研究报告"))
     doc.add_paragraph(f"{_BRAND} · 同源文档与图表")
-    doc.add_page_break()
+    doc.add_page_break()  # type: ignore[no-untyped-call]
     toc_headings = [(p[0], _strip_inline(p[1])) for t, p in blocks if t == "heading" and p[0] <= 2]
     if toc_headings:
         doc.add_heading("目录", level=1)
@@ -236,9 +346,9 @@ def md_to_docx(md_text, output_path):
             run.append(text_el)
             link.append(run)
             p._p.append(link)
-        doc.add_page_break()
+        doc.add_page_break()  # type: ignore[no-untyped-call]
 
-    def add_text_with_math(paragraph, text):
+    def add_text_with_math(paragraph: Any, text: str) -> None:
         parts = re.split(r"(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)", text, flags=re.S)
         for index, part in enumerate(parts):
             if index % 2 == 0:
@@ -247,9 +357,11 @@ def md_to_docx(md_text, output_path):
                 continue
             asset = _math_assets(part)
             run = paragraph.add_run()
-            run.add_picture(io.BytesIO(asset["png"]),
-                            width=Inches(asset["width"] / asset["dpi"]),
-                            height=Inches(asset["height"] / asset["dpi"]))
+            run.add_picture(
+                io.BytesIO(asset["png"]),
+                width=Inches(asset["width"] / asset["dpi"]),
+                height=Inches(asset["height"] / asset["dpi"]),
+            )
 
     h_idx = 0
     for typ, payload in blocks:
@@ -298,7 +410,7 @@ def md_to_docx(md_text, output_path):
         elif typ == "hr":
             doc.add_paragraph("—" * 24)
         elif typ == "image":
-            alt, fmt, b64 = payload
+            alt, _fmt, b64 = payload
             try:
                 doc.add_picture(io.BytesIO(base64.b64decode(b64)), width=Inches(5.8))
             except Exception:
@@ -327,11 +439,11 @@ def md_to_docx(md_text, output_path):
                 for run in caption.runs:
                     run.font.size = Pt(9)
                     run.font.color.rgb = RGBColor(0x66, 0x77, 0x80)
-    doc.save(output_path)
+    doc.save(str(output_path))
     return output_path
 
 
-def convert(fmt, md_text, output_path, ledger_refs=None):
+def convert(fmt: str, md_text: str, output_path: str | Path, ledger_refs: set[int] | None = None) -> str | Path:
     # 图表契约闸门（终审修复 2b）：任一 chart 块不过 validate_chart 即拒建，
     # 缺 title/rationale/refs 的图表不得进入三格式产物。
     errors: list[str] = []

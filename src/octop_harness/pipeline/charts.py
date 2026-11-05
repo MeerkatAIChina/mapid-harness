@@ -12,18 +12,31 @@ from __future__ import annotations
 from typing import Any
 
 ALLOWED = {
-    "bar", "barh", "line", "area", "pie", "donut", "radar", "scatter",
-    "funnel", "gauge", "flow", "graph", "heatmap",
+    "bar",
+    "barh",
+    "line",
+    "area",
+    "pie",
+    "donut",
+    "radar",
+    "scatter",
+    "funnel",
+    "gauge",
+    "flow",
+    "graph",
+    "heatmap",
 }
 
 
 def _numeric(values: Any) -> bool:
-    return isinstance(values, list) and bool(values) and all(
-        isinstance(v, (int, float)) and not isinstance(v, bool) for v in values
+    return (
+        isinstance(values, list)
+        and bool(values)
+        and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
     )
 
 
-def _validate_structure(chart: dict) -> list[str]:
+def _validate_structure(chart: dict[str, Any]) -> list[str]:
     """13 类型结构校验（同事 validate 的判定部分，异常改为错误列表）。"""
     errors: list[str] = []
     ctype = chart.get("type")
@@ -61,12 +74,13 @@ def _validate_structure(chart: dict) -> list[str]:
     if ctype == "heatmap":
         # heat_data 是渲染必需（report_renderer 对其求 min/max），series 不能替代
         heat = chart.get("heat_data")
-        if not isinstance(heat, list) or not heat or any(
-            not isinstance(p, list)
-            or len(p) < 3
-            or not isinstance(p[2], (int, float))
-            or isinstance(p[2], bool)
-            for p in heat
+        if (
+            not isinstance(heat, list)
+            or not heat
+            or any(
+                not isinstance(p, list) or len(p) < 3 or not isinstance(p[2], (int, float)) or isinstance(p[2], bool)
+                for p in heat
+            )
         ):
             errors.append("热力图缺少 heat_data（[x, y, 值] 三元组非空数组）")
     if ctype == "graph":
@@ -89,7 +103,7 @@ def _validate_structure(chart: dict) -> list[str]:
     return errors
 
 
-def validate_chart(chart_json: dict, ledger_refs: set[int] | None) -> list[str]:
+def validate_chart(chart_json: object, ledger_refs: set[int] | None) -> list[str]:
     """返回错误信息列表；空列表 = 通过。ledger_refs=None 表示台账无 ref 列（豁免注册核对）。"""
     if not isinstance(chart_json, dict):
         return ["图表必须是对象"]

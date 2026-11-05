@@ -30,7 +30,8 @@ SAMPLE_MD = """# 测试报告
 公式示例：$$E=mc^2$$
 
 ```chart
-{"type": "bar", "title": "欧普份额领先", "rationale": "支撑龙头判断", "categories": ["欧普", "雷士"], "series": [{"name": "份额", "data": [39.3, 8.1]}], "refs": [1]}
+{"type": "bar", "title": "欧普份额领先", "rationale": "支撑龙头判断",
+ "categories": ["欧普", "雷士"], "series": [{"name": "份额", "data": [39.3, 8.1]}], "refs": [1]}
 ```
 
 ## 本章参考资料
@@ -92,8 +93,8 @@ def test_build_rejects_chart_missing_contract(tmp_path: Path):
     from octop_harness.pipeline.build_outputs import build_outputs
 
     bad = SAMPLE_MD.replace(
-        '{"type": "bar", "title": "欧普份额领先", "rationale": "支撑龙头判断", ',
-        '{"type": "bar", ',
+        '"title": "欧普份额领先", "rationale": "支撑龙头判断",\n ',
+        "",
     )
     md_path = tmp_path / "in.md"
     md_path.write_text(bad, encoding="utf-8")

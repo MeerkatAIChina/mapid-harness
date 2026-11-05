@@ -187,11 +187,16 @@ ignore = [
     "E203",    # whitespace before ':'
     "PLR0913", # too many arguments
     "PLR2004", # magic value comparisons
+    # 本仓库 docstring/注释/用户可见字符串大量使用中文全角标点（有意为之），
+    # RUF001-003 的逐文件豁免打地鼠式蔓延，2026-11-05 起全局豁免
+    "RUF001",  # ambiguous unicode in string
+    "RUF002",  # ambiguous unicode in docstring
+    "RUF003",  # ambiguous unicode in comment
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["PLC0415", "RUF012", "N803"]
-"examples/**/*.py" = ["PLC0415", "RUF001", "T201"]
+"examples/**/*.py" = ["PLC0415", "T201"]
 # Intentional lazy / optional imports across the package
 "src/octop_harness/**/*.py" = ["PLC0415"]
 # Complexity / specialty rules (keep narrow so new code still gets flagged)
@@ -204,22 +209,15 @@ ignore = [
 "src/octop_harness/acp/**/*.py" = ["PLR0911", "N818", "RUF006"]
 "src/octop_harness/builtin/tools/acp_runner.py" = ["PLR0911"]
 "src/octop_harness/builtin/skills/**/scripts/*.py" = ["PLR0911", "PLR0912", "PLR0915"]
-# i18n: full-width punctuation in user-facing zh strings / comments
-"src/octop_harness/slash/core.py" = ["RUF001"]
-"src/octop_harness/middleware/memory.py" = ["RUF003"]
-# Meerkat: 中文 docstring / 字符串 / 注释的全角标点
-"src/octop_harness/report_qa/**/*.py" = ["RUF001", "RUF002", "RUF003"]
-"src/octop_harness/report_tools.py" = ["RUF001", "RUF002", "RUF003"]
-"src/octop_harness/middleware/patient_retry.py" = ["RUF001", "RUF002", "RUF003"]
-"src/octop_harness/middleware/date_injection.py" = ["RUF001", "RUF002", "RUF003"]
-"tests/report_qa/**/*.py" = ["RUF001", "RUF002", "RUF003"]
-"tests/report_tools/**/*.py" = ["RUF001", "RUF002", "RUF003"]
-"tests/unit/test_patient_retry.py" = ["RUF001", "RUF002", "RUF003"]
-"tests/unit/test_date_injection.py" = ["RUF001", "RUF002", "RUF003"]
-"scripts/reset_agent_memory.py" = ["RUF001", "RUF002", "RUF003"]
-"docs/meerkat/**/run_checker_regression.py" = ["RUF001", "RUF002", "RUF003", "PLR0912"]
-"docs/meerkat/**/inject.py" = ["RUF001", "RUF002", "RUF003"]
 "src/octop_harness/context_usage.py" = ["PLR0912"]
+# 章节门禁状态机：大函数多分派是领域形态（比照 cli/** 惯例）
+"src/octop_harness/middleware/chapter_gate.py" = ["PLR0911", "PLR0912", "PLR0915"]
+# 渲染管线（同事内核移植件）：内嵌 CSS/JS 模板行长无意义；reportlab 强制
+# camelCase API（afterFlowable）；matplotlib/mathtext 惰性初始化用 global
+"src/octop_harness/pipeline/doc_tools.py" = ["PLR0912", "PLR0915", "PLW0603", "N802", "E501"]
+"src/octop_harness/pipeline/report_renderer.py" = ["PLR0912", "PLR0915", "E501"]
+"src/octop_harness/pipeline/charts.py" = ["PLR0912"]
+"src/octop_harness/report_qa/checks.py" = ["PLR0912"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["octop_harness"]
@@ -279,6 +277,10 @@ module = [
     "defusedxml.*",
     "pymupdf.*",
     "pymupdf4llm.*",
+    # R4 长报告渲染依赖：reportlab 无官方 stubs；mathml_renderer 为可选外部模块
+    "reportlab.*",
+    "mathml_renderer",
+    "mathml_renderer.*",
 ]
 ignore_missing_imports = true
 

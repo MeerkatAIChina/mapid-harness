@@ -27,9 +27,9 @@ import random
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
@@ -38,8 +38,11 @@ from langgraph.types import Command
 
 from octop_harness.middleware.review_chain import apply_edits, run_review
 from octop_harness.middleware.verification import (
+    Verdict,
+    assertion_key,
     extract_loadbearing_assertions,
     is_acknowledged,
+    is_junk_assertion,
     sample_numeric_claims,
     verify_assertion,
     with_retry,
@@ -63,7 +66,8 @@ CHAPTER_CHECKERS = (
     "intra_chapter_redundancy",
 )
 # merge 终闸：四检查器 + 数值一致性（M1 修正后）+ 结构
-MERGE_CHECKERS = CHAPTER_CHECKERS + (
+MERGE_CHECKERS = (
+    *CHAPTER_CHECKERS,
     "numeric_consistency",
     "structure",
     "citation_cross_chapter",
@@ -73,6 +77,10 @@ MERGE_CHECKERS = CHAPTER_CHECKERS + (
 _WRITE_TOOLS = ("write_file", "edit_file")
 _STATS_TOOL = "report_stats"
 _MERGE_TOOL = "merge_chapters"
+
+# 章级核验总量上限（round-7 实证：多次抽取叠加无封顶，ch2 去重后仍 180 条）。
+# 疑点回流在队首、关键词/台账反查在中、模型抽取与数值抽检在尾——截断先丢尾部。
+_MAX_ASSERTIONS_PER_CHAPTER = 40
 
 # 章节路径：相对（chapters/NN.md）、虚拟（/chapters/NN.md）、绝对均可
 _CHAPTER_RE = re.compile(r"(?:^|[/\\])chapters[/\\]([^/\\]+\.md)$")
@@ -171,7 +179,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._fetch = verify_fetch or _default_fetch
         self._chapters: dict[str, _ChapterState] = {}
         self._merge_rounds = 0
-        self._released: tuple[str, str] | None = None  # (脏章, 新开章) 放行附言
+        self._released: tuple[str, str, str] | None = None  # (脏章, 新开章, 放行门类) 放行附言
         self._merge_released: list[dict[str, Any]] | None = None  # merge 放行时遗留 findings
         self._infra_streak = 0  # 连续 infra 失败次数（核验事故计数器，与 N=2 分开）
         self._verify_aborted = False  # 连续 3 次 infra 失败 = 事故中止，本轮停止核验
@@ -180,6 +188,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._auto_reviewed: list[tuple[str, int]] = []  # merge 前自动审校改动（章, 处数）
         self._exit_rejected: dict[str, str] = {}  # 出口举证驳回原因（章 → reason）
         self._restore_state()
+        self._verdicts: dict[str, dict[str, Any]] = self._load_verdict_cache()
         open_items = self._open_release_items()
         if open_items:
             logger.warning(
@@ -193,9 +202,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     # ------------------------------------------------------------------
 
     _RELEASE_FILE = "gate_release_notes.md"
-    _RELEASE_HEADER = (
-        "# 章节门禁放行记录\n\n| 时间 | 闸门 | 章 | 条目 | 终态 |\n| --- | --- | --- | --- | --- |\n"
-    )
+    _RELEASE_HEADER = "# 章节门禁放行记录\n\n| 时间 | 闸门 | 章 | 条目 | 终态 |\n| --- | --- | --- | --- | --- |\n"
     _RELEASE_TERMINATOR = "以下问题已记录，交完稿评审，**无需处理**。"
 
     def _parse_release_notes(self) -> list[dict[str, str]]:
@@ -207,9 +214,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             for line in path.read_text(encoding="utf-8").splitlines():
                 cells = [c.strip() for c in line.strip().strip("|").split("|")]
                 if len(cells) == 5 and cells[0][:1].isdigit():
-                    rows.append(
-                        dict(zip(("ts", "gate", "chapter", "item", "status"), cells, strict=True))
-                    )
+                    rows.append(dict(zip(("ts", "gate", "chapter", "item", "status"), cells, strict=True)))
         except OSError:
             return []
         return rows
@@ -224,7 +229,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         try:
             if not path.is_file():
                 path.write_text(self._RELEASE_HEADER, encoding="utf-8")
-            ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            ts = datetime.now(UTC).isoformat(timespec="seconds")
             with path.open("a", encoding="utf-8") as fh:
                 for f in findings:
                     item = f"行 {f.get('line', 0)}：{_short(f.get('message', ''))}".replace("|", "/")
@@ -246,10 +251,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         if changed:
             try:
                 lines = [self._RELEASE_HEADER]
-                lines += [
-                    f"| {r['ts']} | {r['gate']} | {r['chapter']} | {r['item']} | {r['status']} |\n"
-                    for r in rows
-                ]
+                lines += [f"| {r['ts']} | {r['gate']} | {r['chapter']} | {r['item']} | {r['status']} |\n" for r in rows]
                 (self._workspace / self._RELEASE_FILE).write_text("".join(lines), encoding="utf-8")
             except OSError:
                 pass
@@ -321,6 +323,32 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         except (OSError, ValueError, TypeError):
             logger.warning("chapter_gate: 状态恢复失败，按全新状态启动", exc_info=True)
 
+    # ------------------------------------------------------------------
+    # 断言判定缓存（round-7 M1：同一断言重复核验最多 10 次，按规范化文本缓存复用；
+    # 跨章共享顺带解决同事实跨章判定自相矛盾）
+    # ------------------------------------------------------------------
+
+    _VERDICT_CACHE_FILE = "verification_cache.json"
+
+    def _load_verdict_cache(self) -> dict[str, dict[str, Any]]:
+        path = self._workspace / self._VERDICT_CACHE_FILE
+        if not path.is_file():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return dict(data) if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            logger.warning("chapter_gate: 判定缓存读取失败，按空缓存启动", exc_info=True)
+            return {}
+
+    def _persist_verdict_cache(self) -> None:
+        try:
+            (self._workspace / self._VERDICT_CACHE_FILE).write_text(
+                json.dumps(self._verdicts, ensure_ascii=False, indent=1), encoding="utf-8"
+            )
+        except OSError:
+            logger.warning("chapter_gate: 判定缓存落盘失败", exc_info=True)
+
     def apply_review_edit(self, chapter: str, new_text: str) -> None:
         """审校工序自身改动：落盘 + 置 reviewed（裁定 14 的豁免只留 reviewed 维度）。
         文本已变 → verified 清回 unchecked，merge 前补核会对改后文本重验
@@ -348,7 +376,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     _QUEUE_FILE = "verification_queue.jsonl"
 
     def _log_audit(self, entry: dict[str, Any]) -> None:
-        entry = {"ts": datetime.now(timezone.utc).isoformat(), **entry}
+        entry = {"ts": datetime.now(UTC).isoformat(), **entry}
         try:
             with (self._workspace / self._AUDIT_FILE).open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -365,7 +393,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     fh.write(
                         json.dumps(
                             {
-                                "ts": datetime.now(timezone.utc).isoformat(),
+                                "ts": datetime.now(UTC).isoformat(),
                                 "chapter": chapter,
                                 "doubt": d,
                             },
@@ -397,11 +425,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         if not path.is_file():
             return
         try:
-            entries = [
-                json.loads(line)
-                for line in path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
+            entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
             rest = [e for e in entries if e.get("chapter") != chapter]
             path.write_text(
                 "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in rest),
@@ -464,6 +488,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     )
 
     async def _assess_exit(self, chapter: str, app: dict[str, Any]) -> tuple[bool, str]:
+        assert self._model_access is not None  # 调用方 _merge_exit_review 已 fail-closed 守卫
         text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
         raw = await self._model_access.ainvoke_text(
             f"举证条目：{json.dumps(app, ensure_ascii=False)}\n\n章节文本：\n{text}",
@@ -501,11 +526,12 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             st = self._chapter_state(chapter)
             if st.exit_granted:
                 continue
+
+            async def _assess(app: dict[str, Any] = app, chapter: str = chapter) -> tuple[bool, str]:
+                return await self._assess_exit(chapter, app)
+
             try:
-                granted, reason = await with_retry(
-                    lambda a=app: self._assess_exit(chapter, a),
-                    backoff_s=self._verify_backoff,
-                )
+                granted, reason = await with_retry(_assess, backoff_s=self._verify_backoff)
             except Exception as exc:
                 logger.warning("chapter_gate: 第 %s 章出口举证核实 infra 失败：%s", chapter, exc)
                 self._exit_rejected[chapter] = "举证核实调用失败（infra），视为未通过"
@@ -551,7 +577,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         st = self._chapter_state(chapter)
         if st.exit_granted:
             return None  # 诚实出口举证通过 = 合规但记录
-        num = chapter.split("_")[0]
+        num = chapter.split("_", maxsplit=1)[0]
         floor = self._floors().get(num)
         if not floor:
             return None  # outline 无该章下限 → 不触发续写判定
@@ -579,7 +605,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         rel = f"chapters/{chapter}"
         findings: list[dict[str, Any]] = []
         for name in CHAPTER_CHECKERS:
-            for f in CHECKERS[name](self._workspace):
+            for f in cast("list[dict[str, Any]]", CHECKERS[name](self._workspace)):
                 if f["file"] == rel:
                     findings.append(f)
         floor = self._floor_finding(chapter)
@@ -590,7 +616,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
     def _evaluate_all(self) -> list[dict[str, Any]]:
         findings: list[dict[str, Any]] = []
         for name in MERGE_CHECKERS:
-            findings.extend(CHECKERS[name](self._workspace))
+            findings.extend(cast("list[dict[str, Any]]", CHECKERS[name](self._workspace)))
         for ch in self._all_workspace_chapters():
             floor = self._floor_finding(ch)
             if floor is not None:
@@ -606,7 +632,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         return p.read_text(encoding="utf-8") if p.is_file() else ""
 
     def _log_verification(self, entry: dict[str, Any]) -> None:
-        entry = {"ts": datetime.now(timezone.utc).isoformat(), **entry}
+        entry = {"ts": datetime.now(UTC).isoformat(), **entry}
         try:
             with (self._workspace / "verification_log.jsonl").open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -623,21 +649,60 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         try:
             chapter_text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
             body = strip_reference_section(chapter_text)  # 参考资料节不是断言，不参与抽取/抽检
-            assertions = await with_retry(
-                lambda: extract_loadbearing_assertions(
-                    body, self._ledger_text(), self._model_access
-                ),
+            extracted = await with_retry(
+                lambda: extract_loadbearing_assertions(body, self._ledger_text(), self._model_access),
                 backoff_s=self._verify_backoff,
             )
-            assertions = self._read_doubts(chapter) + assertions  # 审校回流疑点优先核验
-            assertions += sample_numeric_claims(body, assertions, rng=self._rng)
-            verdicts = [
-                await with_retry(
-                    lambda a=a: verify_assertion(a, self._model_access, self._search, self._fetch),
-                    backoff_s=self._verify_backoff,
-                )
-                for a in assertions
+            # 审校回流疑点优先核验；版式碎片（表格行/标题）不进入核验（round-7 M2）
+            assertions = self._read_doubts(chapter) + [a for a in extracted if not is_junk_assertion(a)]
+            assertions += [
+                a for a in sample_numeric_claims(body, assertions, rng=self._rng) if not is_junk_assertion(a)
             ]
+            seen: set[str] = set()  # 疑点与抽取可重叠，合并后再去重一次
+            deduped: list[str] = []
+            for a in assertions:
+                if a not in seen:
+                    seen.add(a)
+                    deduped.append(a)
+            assertions = deduped
+            if len(assertions) > _MAX_ASSERTIONS_PER_CHAPTER:
+                logger.info(
+                    "chapter_gate: 第 %s 章断言 %d 条超上限，核验前 %d 条（尾部 %d 条未核）",
+                    chapter,
+                    len(assertions),
+                    _MAX_ASSERTIONS_PER_CHAPTER,
+                    len(assertions) - _MAX_ASSERTIONS_PER_CHAPTER,
+                )
+                assertions = assertions[:_MAX_ASSERTIONS_PER_CHAPTER]
+            verdicts: list[Verdict] = []
+            cached_flags: list[bool] = []
+            for a in assertions:
+                key = assertion_key(a)
+                hit = self._verdicts.get(key)
+                if hit is not None:
+                    verdicts.append(
+                        Verdict(
+                            str(hit["verdict"]),
+                            evidence_url=hit.get("evidence_url"),
+                            reason=str(hit.get("reason", "")),
+                        )
+                    )
+                    cached_flags.append(True)
+                    continue
+
+                async def _verify(a: str = a) -> Verdict:
+                    return await verify_assertion(a, self._model_access, self._search, self._fetch)
+
+                v = await with_retry(_verify, backoff_s=self._verify_backoff)
+                self._verdicts[key] = {
+                    "assertion": a,
+                    "verdict": v.result,
+                    "evidence_url": v.evidence_url,
+                    "reason": v.reason,
+                }
+                self._persist_verdict_cache()
+                verdicts.append(v)
+                cached_flags.append(False)
         except Exception as exc:  # infra 失败（重试耗尽）→ 章级 fail-open，不消耗 N=2
             st.verified = "pending"
             self._infra_streak += 1
@@ -663,7 +728,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         self._infra_streak = 0
         self._clear_doubts(chapter)  # 本轮核验成功，已核疑点出队
         rel = f"chapters/{chapter}"
-        for a, v in zip(assertions, verdicts, strict=True):
+        for a, v, cached in zip(assertions, verdicts, cached_flags, strict=True):
             self._log_verification(
                 {
                     "type": "verdict",
@@ -672,6 +737,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     "verdict": v.result,
                     "evidence_url": v.evidence_url,
                     "reason": v.reason,
+                    "cached": cached,
                 }
             )
             if v.result == "refuted":
@@ -684,11 +750,10 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         "message": f"承重断言证伪：{a}（证据 {v.evidence_url or '无'}：{v.reason}）",
                     }
                 )
-            elif v.result == "unverifiable":
-                # 已按降级处置（断言自带标注，或正文存在同事实标注句——
-                # 台账反查断言按正文出队，终审复验补修）不计入待处理
-                if not is_acknowledged(a, body):
-                    st.verify_notes.append(a)
+            # 已按降级处置（断言自带标注，或正文存在同事实标注句——
+            # 台账反查断言按正文出队，终审复验补修）不计入待处理
+            elif v.result == "unverifiable" and not is_acknowledged(a, body):
+                st.verify_notes.append(a)
         st.verified = "failed" if st.verify_findings else "passed"
 
     async def _verify_touchpoint(
@@ -705,8 +770,14 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         chapter = _chapter_name_from_path(args.get("path"))
         chapters = [chapter] if chapter is not None else self._all_workspace_chapters()
         for ch in chapters:
+            # mypy 属性窄化误报：循环内 _verify_chapter 可置位 _verify_aborted
             if self._verify_aborted:  # 事故中止：目录统计的后续章也跳过
-                break
+                break  # type: ignore[unreachable]
+            st = self._chapter_state(ch)
+            # 已过章不重复核（round-7 M1：「编辑即清」保证 passed 后文本未变）；
+            # 有审校回流疑点未核的章除外——疑点必须进核验，不能被跳过
+            if st.verified == "passed" and not self._read_doubts(ch):
+                continue
             if self._content_findings(ch):  # 内容 findings 非空 → 先修格式，核验等下轮复测
                 continue
             await self._verify_chapter(ch)
@@ -744,14 +815,11 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         lines.append("修复后请再次调用 report_stats 复测。")
         return "\n".join(lines)
 
-    def _multi_postscript(
-        self, results: list[tuple[str, list[dict[str, Any]]]]
-    ) -> str:
+    def _multi_postscript(self, results: list[tuple[str, list[dict[str, Any]]]]) -> str:
         """目录统计（report_stats chapters/）的合并附言：逐章状态 + 脏章明细。"""
         dirty = [(ch, fs) for ch, fs in results if fs]
         header = (
-            f"[chapter_gate] 本次检查 {len(results)} 章："
-            f"{len(results) - len(dirty)} 章通过，{len(dirty)} 章有问题。"
+            f"[chapter_gate] 本次检查 {len(results)} 章：{len(results) - len(dirty)} 章通过，{len(dirty)} 章有问题。"
         )
         if not dirty:
             return header + "可继续下一章。"
@@ -770,8 +838,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
 
     def _merge_summary(self, findings: list[dict[str, Any]]) -> str:
         lines = [
-            f"[chapter_gate] 合并闸门：全量检查发现 {len(findings)} 项问题，"
-            "先修复再合并（余项可在修复后整体复测）："
+            f"[chapter_gate] 合并闸门：全量检查发现 {len(findings)} 项问题，先修复再合并（余项可在修复后整体复测）："
         ]
         lines.extend(self._finding_line(f, with_file=True) for f in findings[:10])
         if len(findings) > 10:
@@ -865,8 +932,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 )
             if st.repair_rounds >= self._max:
                 logger.warning(
-                    "chapter_gate: 第 %s 章已达自修上限（%d 次），放行开新章 %s；"
-                    "遗留 findings %d 条交完稿评审",
+                    "chapter_gate: 第 %s 章已达自修上限（%d 次），放行开新章 %s；遗留 findings %d 条交完稿评审",
                     first,
                     st.repair_rounds,
                     chapter,
@@ -928,16 +994,14 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         hard.append(f"第 {num} 章未审校")
                     if st.verify_notes:
                         hard.append(
-                            f"第 {num} 章 {len(st.verify_notes)} 条断言查无实证未处理"
-                            "（降级表述或标注 [待核实] 后复测）"
+                            f"第 {num} 章 {len(st.verify_notes)} 条断言查无实证未处理（降级表述或标注 [待核实] 后复测）"
                         )
                 for ch, reason in self._exit_rejected.items():
                     hard.append(f"第 {ch.split('_')[0]} 章出口举证被驳回：{reason}")
                 if hard:
                     logger.info("chapter_gate: merge 闸硬失败（工序缺位）：%s", hard)
                     return ToolMessage(
-                        content="[chapter_gate] 合并闸门（硬失败，不放行）：\n"
-                        + "\n".join(f"- {h}" for h in hard),
+                        content="[chapter_gate] 合并闸门（硬失败，不放行）：\n" + "\n".join(f"- {h}" for h in hard),
                         name=tool_name or "tool",
                         tool_call_id=call_id,
                         status="error",
@@ -954,8 +1018,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 return None
             if self._merge_rounds >= self._max:
                 logger.warning(
-                    "chapter_gate: merge 闸已达自修上限（%d 次），放行合并；"
-                    "遗留 findings %d 条交完稿评审",
+                    "chapter_gate: merge 闸已达自修上限（%d 次），放行合并；遗留 findings %d 条交完稿评审",
                     self._merge_rounds,
                     len(findings),
                 )
@@ -1003,32 +1066,20 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         st.repair_rounds = 0  # 复测通过，额度复位
                         st.extend_rounds = 0
                     results.append((ch, combined))
-                ps = (
-                    self._chapter_postscript(results[0][1])
-                    if chapter is not None
-                    else self._multi_postscript(results)
-                )
+                ps = self._chapter_postscript(results[0][1]) if chapter is not None else self._multi_postscript(results)
                 extra: list[str] = []
                 for ch in chapters:
-                    st = self._chapters.get(ch)
-                    if st is None:
+                    st_ch = self._chapters.get(ch)
+                    if st_ch is None:
                         continue
                     num = ch.split("_")[0]
-                    if st.verify_notes:
-                        extra.append(
-                            f"第 {num} 章以下断言查无实证，请降级表述强度并标注 [待核实]："
-                        )
-                        extra.extend(f"- {n}" for n in st.verify_notes[:5])
-                    if st.verified == "pending":
-                        extra.append(
-                            f"第 {num} 章本次核验因核验服务不可用未执行"
-                            "（环境事故已留痕，不消耗修复额度）。"
-                        )
+                    if st_ch.verify_notes:
+                        extra.append(f"第 {num} 章以下断言查无实证，请降级表述强度并标注 [待核实]：")
+                        extra.extend(f"- {n}" for n in st_ch.verify_notes[:5])
+                    if st_ch.verified == "pending":
+                        extra.append(f"第 {num} 章本次核验因核验服务不可用未执行（环境事故已留痕，不消耗修复额度）。")
                 if self._verify_aborted:
-                    extra.append(
-                        "核验服务连续失败已达事故阈值，本轮后续章节跳过核验"
-                        "（环境事故，建议本轮作废重跑）。"
-                    )
+                    extra.append("核验服务连续失败已达事故阈值，本轮后续章节跳过核验（环境事故，建议本轮作废重跑）。")
                 if extra:
                     ps = ps + "\n" + "\n".join(extra)
                 result = ToolMessage(
@@ -1040,9 +1091,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             return result
 
         if base in _WRITE_TOOLS and not _is_error(result):
-            chapter = _chapter_name_from_path(
-                args.get("file_path") or args.get("path")
-            )
+            chapter = _chapter_name_from_path(args.get("file_path") or args.get("path"))
             if chapter is not None:
                 st = self._chapter_state(chapter)
                 st.status = "unevaluated"  # 修改脏章/任何章 → 待复测

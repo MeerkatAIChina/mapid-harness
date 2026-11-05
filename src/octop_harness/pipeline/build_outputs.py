@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
+from typing import Any
 
 from octop_harness.pipeline.report_renderer import convert
 from octop_harness.report_qa.citations import parse_ledger_refs
@@ -16,17 +17,15 @@ from octop_harness.report_qa.citations import parse_ledger_refs
 _MIN_BYTES = 10_000
 
 
-def build_outputs(md_path: Path, out_dir: Path, base_name: str) -> dict[str, dict]:
+def build_outputs(md_path: Path, out_dir: Path, base_name: str) -> dict[str, dict[str, Any]]:
     """从同一份 md 生成三格式；任一格式异常小即 RuntimeError。"""
     md_path = Path(md_path)
     md = md_path.read_text(encoding="utf-8")
     ledger = md_path.parent / "data_ledger.md"
-    ledger_refs = (
-        parse_ledger_refs(ledger.read_text(encoding="utf-8")) if ledger.is_file() else None
-    )
+    ledger_refs = parse_ledger_refs(ledger.read_text(encoding="utf-8")) if ledger.is_file() else None
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    results: dict[str, dict] = {}
+    results: dict[str, dict[str, Any]] = {}
     for fmt in ("docx", "html", "pdf"):
         out = out_dir / f"{base_name}.{fmt}"
         t0 = time.time()

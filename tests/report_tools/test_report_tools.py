@@ -61,11 +61,8 @@ def test_merge_orders_by_filename_and_marks_chapters(chapters_dir, tmp_path):
     assert first < second < third
     assert "<!-- ===== 01_背景.md ===== -->" in merged
     assert result["files"] == 3
-    assert result["total"]["non_ws_chars"] == sum(
-        item["non_ws_chars"] for item in result["per_file"]
-    ) + sum(
-        len(f"<!-- ===== {item['file']} ===== -->".replace(" ", ""))
-        for item in result["per_file"]
+    assert result["total"]["non_ws_chars"] == sum(item["non_ws_chars"] for item in result["per_file"]) + sum(
+        len(f"<!-- ===== {item['file']} ===== -->".replace(" ", "")) for item in result["per_file"]
     )
 
 
@@ -199,6 +196,8 @@ def test_plugin_report_stats_with_absolute_path(plugin_tools, tmp_path):
 def test_plugin_merge_error_returns_string_not_raise(plugin_tools, tmp_path):
     text = plugin_tools["merge_chapters"](str(tmp_path / "nope"), str(tmp_path / "o.md"))
     assert text.startswith("Error: ")
+
+
 # --- 交付链（merge 前清理 + merge 后三格式构建/验收，设计 §5.1/§6.1） -----------
 
 
@@ -230,21 +229,15 @@ def test_merge_cleans_residue_before_merging(plugin_tools, stub_chain, chapters_
     assert "原文描述有误" not in merged
 
 
-def test_merge_invokes_delivery_chain_with_merged_path(
-    plugin_tools, stub_chain, chapters_dir, tmp_path
-):
+def test_merge_invokes_delivery_chain_with_merged_path(plugin_tools, stub_chain, chapters_dir, tmp_path):
     _write(chapters_dir / "01.md", "内容")
     out = tmp_path / "report_merged.md"
     plugin_tools["merge_chapters"](str(chapters_dir), str(out))
     assert stub_chain["merged_path"] == out.resolve()
 
 
-def test_merge_delivery_chain_failure_returns_error(
-    plugin_tools, monkeypatch, chapters_dir, tmp_path
-):
-    monkeypatch.setattr(
-        report_tools, "_run_delivery_chain", lambda p: ["PDF 文本未检查：pdftotext 不可用"]
-    )
+def test_merge_delivery_chain_failure_returns_error(plugin_tools, monkeypatch, chapters_dir, tmp_path):
+    monkeypatch.setattr(report_tools, "_run_delivery_chain", lambda p: ["PDF 文本未检查：pdftotext 不可用"])
     _write(chapters_dir / "01.md", "内容")
     out = tmp_path / "report_merged.md"
     text = plugin_tools["merge_chapters"](str(chapters_dir), str(out))
@@ -301,9 +294,7 @@ def test_delivery_chain_validate_failures_returned(monkeypatch, tmp_path):
     import octop_harness.pipeline.validate_report as vr
 
     monkeypatch.setattr(bo, "build_outputs", lambda *a, **k: {"docx": {}})
-    monkeypatch.setattr(
-        vr, "validate_report", lambda *a, **k: ["HTML 可见文本 存在占位符：XX 亿"]
-    )
+    monkeypatch.setattr(vr, "validate_report", lambda *a, **k: ["HTML 可见文本 存在占位符：XX 亿"])
     assert report_tools._run_delivery_chain(merged) == ["HTML 可见文本 存在占位符：XX 亿"]
 
 

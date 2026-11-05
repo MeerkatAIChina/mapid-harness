@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 修复
+
+- 章节门禁核验成本失控（round-7 实证）：`report_stats` 复测不再对已通过核验且文本未编辑的章节整章重核（审校回流疑点未核的章除外）；断言判定按规范化文本落盘缓存（`verification_cache.json`），编辑触发的重核只核缓存未命中的断言；表格行/标题等版式碎片不再进入核验；单章核验断言总量封顶 40 条。
+
 ## [1.0.3] - 2026-10-14
 
 ### 新增

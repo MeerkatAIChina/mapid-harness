@@ -67,8 +67,18 @@ def good_ledger(extra_rows: list[str] | None = None) -> str:
 
 def test_degeneration_template_burst_hit(tmp_path: Path) -> None:
     names = [
-        "孔子", "孟子", "老子", "庄子", "墨子", "韩非子",
-        "孙子", "吴起", "孙膑", "白起", "王翦", "李牧",
+        "孔子",
+        "孟子",
+        "老子",
+        "庄子",
+        "墨子",
+        "韩非子",
+        "孙子",
+        "吴起",
+        "孙膑",
+        "白起",
+        "王翦",
+        "李牧",
     ]
     rows = "\n".join(f"| 渠道{n}化 | Channel {n} | 销售渠道的{n}化 |" for n in names)
     ws = make_ws(tmp_path, chapters={"01_甲.md": f"# 附录\n\n{rows}\n"})
@@ -158,10 +168,7 @@ def test_degeneration_template_burst_normal_tables_no_hit(tmp_path: Path) -> Non
 
 
 def test_degeneration_duplicate_paragraph_hit(tmp_path: Path) -> None:
-    para = (
-        "本章节系统梳理了行业上下游的关键驱动因素与主要约束条件，"
-        "供后续章节引用，并作为分析框架的基础贯穿全文。"
-    )
+    para = "本章节系统梳理了行业上下游的关键驱动因素与主要约束条件，供后续章节引用，并作为分析框架的基础贯穿全文。"
     text = f"# 章\n\n{para}\n\n中间隔段。\n\n{para}\n"
     ws = make_ws(tmp_path, chapters={"01_甲.md": text})
     findings = checks.check_degeneration(ws)
@@ -196,10 +203,7 @@ def test_degeneration_clean(tmp_path: Path) -> None:
 
 def test_word_count_chapter_claim_deviation_hit(tmp_path: Path) -> None:
     chapter_text = BODY_600  # 实测约一千余非空白字符
-    progress = (
-        "# 进度\n\n| 序号 | 章节名称 | 状态 | 字数 |\n|---|---|---|---|\n"
-        "| 1 | 甲 | 已完成 | 20,000 |\n"
-    )
+    progress = "# 进度\n\n| 序号 | 章节名称 | 状态 | 字数 |\n|---|---|---|---|\n| 1 | 甲 | 已完成 | 20,000 |\n"
     ws = make_ws(tmp_path, chapters={"01_甲.md": chapter_text}, progress=progress)
     findings = checks.check_word_count(ws)
     assert any(f["check"] == "word_count" and "GD-13" in f["message"] for f in findings)
@@ -426,10 +430,7 @@ def test_structure_stale_date_hit(tmp_path: Path) -> None:
 
 
 def test_structure_cross_chapter_dup_hit(tmp_path: Path) -> None:
-    para = (
-        "本段为跨章逐字复制的样板文字，长度必须超过五十个字符才能被检测到，"
-        "故再补充若干字以确保段落总长度足够。"
-    )
+    para = "本段为跨章逐字复制的样板文字，长度必须超过五十个字符才能被检测到，故再补充若干字以确保段落总长度足够。"
     ws = make_ws(
         tmp_path,
         chapters={"01_甲.md": f"# 甲\n\n{para}\n", "02_乙.md": f"# 乙\n\n{para}\n"},
@@ -494,11 +495,13 @@ def test_numeric_multi_year_rows_clean(tmp_path: Path) -> None:
     """M1：同指标多年份分行（口径/年份不同）= 正常台账，不报（round-3 误报型）。"""
     ws = make_ws(
         tmp_path,
-        ledger=_numeric_ledger([
-            "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
-            "| 欧普照明营业收入 | 69.70 | 亿元 | 2025年报 | 年报 | 03 |",
-            "| 欧普照明营业收入 | 77.95 | 亿元 | 2023年报 | 年报 | 03 |",
-        ]),
+        ledger=_numeric_ledger(
+            [
+                "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
+                "| 欧普照明营业收入 | 69.70 | 亿元 | 2025年报 | 年报 | 03 |",
+                "| 欧普照明营业收入 | 77.95 | 亿元 | 2023年报 | 年报 | 03 |",
+            ]
+        ),
     )
     findings = checks.check_numeric_consistency(ws)
     assert findings == []
@@ -508,10 +511,12 @@ def test_numeric_same_caliber_conflict_hit(tmp_path: Path) -> None:
     """M1：同指标同口径两个不同数值 = 真冲突，应报。"""
     ws = make_ws(
         tmp_path,
-        ledger=_numeric_ledger([
-            "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
-            "| 欧普照明营业收入 | 79.06 | 亿元 | 2024年报 | 年报 | 03 |",
-        ]),
+        ledger=_numeric_ledger(
+            [
+                "| 欧普照明营业收入 | 70.96 | 亿元 | 2024年报 | 年报 | 03 |",
+                "| 欧普照明营业收入 | 79.06 | 亿元 | 2024年报 | 年报 | 03 |",
+            ]
+        ),
     )
     findings = checks.check_numeric_consistency(ws)
     assert any(f["check"] == "numeric_consistency" for f in findings)
@@ -521,10 +526,12 @@ def test_numeric_granularity_substring_clean(tmp_path: Path) -> None:
     """M1：同口径粒度差异（「2016 年」⊂「2016 年 6 月」）不报。"""
     ws = make_ws(
         tmp_path,
-        ledger=_numeric_ledger([
-            "| 欧普照明上市时间 | 2016 年 6 月 | — | — | 招股说明书 | 03 |",
-            "| 欧普照明上市时间 | 2016 年 | — | — | 招股说明书 | 03 |",
-        ]),
+        ledger=_numeric_ledger(
+            [
+                "| 欧普照明上市时间 | 2016 年 6 月 | — | — | 招股说明书 | 03 |",
+                "| 欧普照明上市时间 | 2016 年 | — | — | 招股说明书 | 03 |",
+            ]
+        ),
     )
     findings = checks.check_numeric_consistency(ws)
     assert findings == []
@@ -534,10 +541,12 @@ def test_numeric_caliber_annotation_conflict_hit(tmp_path: Path) -> None:
     """GD-09 型：口径带实算注释（「2024年报」⊂「2024年报实算（…）」）仍算同口径，应报。"""
     ws = make_ws(
         tmp_path,
-        ledger=_numeric_ledger([
-            "| 木林森2024营收同比增速 | -0.35% | % | 2024年报 | 木林森2024年报 | 05 |",
-            "| 木林森2024营收同比增速 | -3.57% | % | 2024年报实算（175.36→169.10亿） | 木林森2024年报 | 09 |",
-        ]),
+        ledger=_numeric_ledger(
+            [
+                "| 木林森2024营收同比增速 | -0.35% | % | 2024年报 | 木林森2024年报 | 05 |",
+                "| 木林森2024营收同比增速 | -3.57% | % | 2024年报实算（175.36→169.10亿） | 木林森2024年报 | 09 |",
+            ]
+        ),
     )
     findings = checks.check_numeric_consistency(ws)
     assert any(f["check"] == "numeric_consistency" for f in findings)
@@ -554,7 +563,7 @@ def test_conclusion_source_clean(tmp_path: Path) -> None:
     ws = make_ws(
         tmp_path,
         chapters={
-            "03_剖析.md": "欧普照明 2024 年报营收 70.96 亿元，毛利率 39.16%。" ,
+            "03_剖析.md": "欧普照明 2024 年报营收 70.96 亿元，毛利率 39.16%。",
             CONCLUSION_CH: "营收 70.96 亿元（见第 3 章），毛利率 39.16%（见第 3 章）。",
         },
     )
@@ -630,26 +639,35 @@ def test_conclusion_source_missing_chapter_hit(tmp_path: Path) -> None:
     findings = checks.check_conclusion_source(ws)
     assert any("不存在" in f["message"] or "第 7 章" in f["message"] for f in findings)
 
+
 # ---------------------------------------------------------------------------
 # 10. 引用三级判定（设计文档_R4 §2.2，Task 3）
 # ---------------------------------------------------------------------------
 
-LEDGER_WITH_REF = "\n".join([
-    "# 数据台账", "",
-    "| 指标名 | 数值 | 单位 | 口径/年份 | 来源 | 首现章节 | ref |",
-    "|---|---|---|---|---|---|---|",
-    "| 欧普照明2024年营业收入 | 70.96 | 亿元 | 合并报表 | 欧普照明2024年年度报告 | 03 | 3 |",
-    "",
-])
+LEDGER_WITH_REF = "\n".join(
+    [
+        "# 数据台账",
+        "",
+        "| 指标名 | 数值 | 单位 | 口径/年份 | 来源 | 首现章节 | ref |",
+        "|---|---|---|---|---|---|---|",
+        "| 欧普照明2024年营业收入 | 70.96 | 亿元 | 合并报表 | 欧普照明2024年年度报告 | 03 | 3 |",
+        "",
+    ]
+)
 
-CH_WITH_REFS = "\n".join([
-    "# 03 欧普深度剖析", "",
-    "欧普照明 2024 年营收 70.96 亿元[3]，同比增长 5.2%[3]。" "",
-    BODY_600, "",
-    "## 本章参考资料", "",
-    "[3] 欧普照明《2024年年度报告》，2025，上交所披露平台",
-    "",
-])
+CH_WITH_REFS = "\n".join(
+    [
+        "# 03 欧普深度剖析",
+        "",
+        "欧普照明 2024 年营收 70.96 亿元[3]，同比增长 5.2%[3]。",
+        BODY_600,
+        "",
+        "## 本章参考资料",
+        "",
+        "[3] 欧普照明《2024年年度报告》，2025，上交所披露平台",
+        "",
+    ]
+)
 
 
 def test_citation_dangling_flags_missing_entry(tmp_path: Path) -> None:
@@ -657,7 +675,9 @@ def test_citation_dangling_flags_missing_entry(tmp_path: Path) -> None:
     ch = CH_WITH_REFS.replace(BODY_600, BODY_600 + "\n另一段引用了[7]这个编号但章末没有条目。")
     ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
     findings = checks.check_citation_dangling(ws)
-    assert any(f["check"] == "citation_dangling" and f["severity"] == "high" and "[7]" in f["message"] for f in findings)
+    assert any(
+        f["check"] == "citation_dangling" and f["severity"] == "high" and "[7]" in f["message"] for f in findings
+    )
 
 
 def test_citation_dangling_clean(tmp_path: Path) -> None:
@@ -669,7 +689,9 @@ def test_citation_orphan_flags_uncited_entry(tmp_path: Path) -> None:
     ch = CH_WITH_REFS + "[9] 某券商《照明行业研报》，2024，https://x\n"
     ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
     findings = checks.check_citation_orphan(ws)
-    assert any(f["check"] == "citation_orphan" and f["severity"] == "medium" and "[9]" in f["message"] for f in findings)
+    assert any(
+        f["check"] == "citation_orphan" and f["severity"] == "medium" and "[9]" in f["message"] for f in findings
+    )
 
 
 def test_citation_orphan_clean(tmp_path: Path) -> None:
@@ -681,7 +703,9 @@ def test_citation_ledger_ref_flags_unregistered(tmp_path: Path) -> None:
     ch = CH_WITH_REFS.replace("[3]", "[8]")
     ws = make_ws(tmp_path, chapters={"03_欧普.md": ch}, ledger=LEDGER_WITH_REF)
     findings = checks.check_citation_ledger_ref(ws)
-    assert any(f["check"] == "citation_ledger_ref" and f["severity"] == "high" and "[8]" in f["message"] for f in findings)
+    assert any(
+        f["check"] == "citation_ledger_ref" and f["severity"] == "high" and "[8]" in f["message"] for f in findings
+    )
 
 
 def test_citation_ledger_ref_skips_legacy_ledger(tmp_path: Path) -> None:
@@ -709,16 +733,28 @@ def test_unsourced_precise_still_flags_bare_number(tmp_path: Path) -> None:
 
 
 def test_figure_companion_accepts_bracket_ref(tmp_path: Path) -> None:
-    ch = "\n".join([
-        "# 03 欧普", "",
-        "| 企业 | 份额 |", "|---|---|", "| 欧普 | 39.3% |", "",
-        "> 数据来源：[3]", "> 解读：欧普份额领先，支撑其龙头判断。该解读两句以上。", "",
-        BODY_600, "",
-        "## 本章参考资料", "",
-        "[3] CSA《行业白皮书》，2024，https://x", "",
-    ])
+    ch = "\n".join(
+        [
+            "# 03 欧普",
+            "",
+            "| 企业 | 份额 |",
+            "|---|---|",
+            "| 欧普 | 39.3% |",
+            "",
+            "> 数据来源：[3]",
+            "> 解读：欧普份额领先，支撑其龙头判断。该解读两句以上。",
+            "",
+            BODY_600,
+            "",
+            "## 本章参考资料",
+            "",
+            "[3] CSA《行业白皮书》，2024，https://x",
+            "",
+        ]
+    )
     ws = make_ws(tmp_path, chapters={"03_欧普.md": ch})
     assert checks.check_figure_companion(ws) == []
+
 
 # ---------------------------------------------------------------------------
 # 11. 占位符扫描（设计文档_R4 §5.2，GD-21）
@@ -743,6 +779,7 @@ def test_placeholder_scan_flags_todo_words(tmp_path: Path) -> None:
 def test_placeholder_scan_clean_text(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, chapters={"03_欧普.md": "营收 83.02 亿元，口径清晰。\n" + BODY_600})
     assert checks.check_placeholder_scan(ws) == []
+
 
 # ---------------------------------------------------------------------------
 # 12. 同章反复（设计文档_R4 §5.3，GD-27）
@@ -773,6 +810,7 @@ def test_intra_chapter_ignores_cross_chapter(tmp_path: Path) -> None:
     ws = make_ws(tmp_path, chapters={"01_甲.md": PARA_A + "\n", "02_乙.md": PARA_A + "\n"})
     assert checks.check_intra_chapter_redundancy(ws) == []
 
+
 # ---------------------------------------------------------------------------
 # 13. 空壳章编号排除（设计文档_R4 §7.3，Task 19）
 # ---------------------------------------------------------------------------
@@ -780,15 +818,18 @@ def test_intra_chapter_ignores_cross_chapter(tmp_path: Path) -> None:
 
 def test_shell_chapter_excluded_from_numbering(tmp_path: Path) -> None:
     # 05 正常 + 06 空壳（41 字符）+ 07 正常 → 报空壳章，且空壳不算数 → 报编号缺失 6
-    ws = make_ws(tmp_path, chapters={
-        "05_甲.md": BODY_600,
-        "06_乙.md": "第六章待写。",
-        "07_丙.md": BODY_600,
-    })
+    ws = make_ws(
+        tmp_path,
+        chapters={
+            "05_甲.md": BODY_600,
+            "06_乙.md": "第六章待写。",
+            "07_丙.md": BODY_600,
+        },
+    )
     findings = checks.check_structure(ws)
     messages = [f["message"] for f in findings]
     assert any("空壳章" in m for m in messages)
-    assert any("缺失：6" in m or "缺失: 6" in m or "6" in m and "编号" in m for m in messages)
+    assert any("缺失：6" in m or "缺失: 6" in m or ("6" in m and "编号" in m) for m in messages)
 
 
 def test_normal_chapter_counts_in_numbering(tmp_path: Path) -> None:
@@ -801,29 +842,37 @@ def test_normal_chapter_counts_in_numbering(tmp_path: Path) -> None:
 # R4 终审修复 2c：跨章同号异源 + 台账重复取号
 # ---------------------------------------------------------------------------
 
-CH_A_REF1 = "\n".join([
-    "# 03 章", "",
-    "正文引用[1]。" + BODY_600, "",
-    "## 本章参考资料", "",
-    "[1] 甲公司《2024年年度报告》，2025",
-    "",
-])
-CH_B_REF1 = "\n".join([
-    "# 04 章", "",
-    "正文引用[1]。" + BODY_600, "",
-    "## 本章参考资料", "",
-    "[1] 乙研究院《照明行业年报》，2024",
-    "",
-])
+CH_A_REF1 = "\n".join(
+    [
+        "# 03 章",
+        "",
+        "正文引用[1]。" + BODY_600,
+        "",
+        "## 本章参考资料",
+        "",
+        "[1] 甲公司《2024年年度报告》，2025",
+        "",
+    ]
+)
+CH_B_REF1 = "\n".join(
+    [
+        "# 04 章",
+        "",
+        "正文引用[1]。" + BODY_600,
+        "",
+        "## 本章参考资料",
+        "",
+        "[1] 乙研究院《照明行业年报》，2024",
+        "",
+    ]
+)
 
 
 def test_citation_cross_chapter_conflict(tmp_path: Path) -> None:
     """终审复现：两章都用 [1] 分别指向甲、乙两份不同年报，检查结果为零违规。"""
     ws = make_ws(tmp_path, chapters={"03_a.md": CH_A_REF1, "04_b.md": CH_B_REF1})
     findings = checks.check_citation_cross_chapter(ws)
-    assert any(
-        f["check"] == "citation_cross_chapter" and "[1]" in f["message"] for f in findings
-    )
+    assert any(f["check"] == "citation_cross_chapter" and "[1]" in f["message"] for f in findings)
 
 
 def test_citation_cross_chapter_same_source_ok(tmp_path: Path) -> None:
@@ -834,31 +883,35 @@ def test_citation_cross_chapter_same_source_ok(tmp_path: Path) -> None:
 
 def test_ledger_ref_duplicate_flagged(tmp_path: Path) -> None:
     """终审复现：两个不同台账指标重复注册 ref=1，解析后只剩集合 {1}，冲突不可见。"""
-    ledger = "\n".join([
-        "# 数据台账", "",
-        "| 指标 | 数值 | ref |",
-        "| --- | --- | --- |",
-        "| 甲公司2024年营收 | 100 | 1 |",
-        "| 乙公司2024年营收 | 200 | 1 |",
-        "",
-    ])
+    ledger = "\n".join(
+        [
+            "# 数据台账",
+            "",
+            "| 指标 | 数值 | ref |",
+            "| --- | --- | --- |",
+            "| 甲公司2024年营收 | 100 | 1 |",
+            "| 乙公司2024年营收 | 200 | 1 |",
+            "",
+        ]
+    )
     ws = make_ws(tmp_path, ledger=ledger)
     findings = checks.check_ledger_ref_duplicate(ws)
-    assert any(
-        f["check"] == "ledger_ref_duplicate" and "ref=1" in f["evidence"] for f in findings
-    )
+    assert any(f["check"] == "ledger_ref_duplicate" and "ref=1" in f["evidence"] for f in findings)
 
 
 def test_ledger_ref_duplicate_same_indicator_ok(tmp_path: Path) -> None:
     # 同指标同号多行（数值冲突型，归 numeric_consistency 管）≠ 重复取号
-    ledger = "\n".join([
-        "# 数据台账", "",
-        "| 指标 | 数值 | ref |",
-        "| --- | --- | --- |",
-        "| 甲公司2024年营收 | 100 | 1 |",
-        "| 甲公司2024年营收 | 120 | 1 |",
-        "",
-    ])
+    ledger = "\n".join(
+        [
+            "# 数据台账",
+            "",
+            "| 指标 | 数值 | ref |",
+            "| --- | --- | --- |",
+            "| 甲公司2024年营收 | 100 | 1 |",
+            "| 甲公司2024年营收 | 120 | 1 |",
+            "",
+        ]
+    )
     ws = make_ws(tmp_path, ledger=ledger)
     assert checks.check_ledger_ref_duplicate(ws) == []
 

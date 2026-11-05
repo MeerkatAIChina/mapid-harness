@@ -1508,9 +1508,7 @@ class HarnessAgent:
             from octop_harness.middleware.chapter_gate import ChapterGateMiddleware
 
             gate_workspace = (
-                cfg.chapter_gate_workspace_root
-                or _os.environ.get("OCTOP_CHAPTER_GATE_WORKSPACE")
-                or cfg.workspace_dir
+                cfg.chapter_gate_workspace_root or _os.environ.get("OCTOP_CHAPTER_GATE_WORKSPACE") or cfg.workspace_dir
             )
             chain.append(
                 ChapterGateMiddleware(

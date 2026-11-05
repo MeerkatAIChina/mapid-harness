@@ -84,4 +84,4 @@ async def run_review(chapter_text: str, model_access: Any) -> tuple[list[Edit], 
     return parse_review_response(raw)
 
 
-__all__ = ["Edit", "MAX_EDIT_CHARS", "apply_edits", "parse_review_response", "run_review"]
+__all__ = ["MAX_EDIT_CHARS", "Edit", "apply_edits", "parse_review_response", "run_review"]

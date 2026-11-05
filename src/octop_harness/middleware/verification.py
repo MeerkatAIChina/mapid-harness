@@ -145,7 +145,12 @@ async def extract_loadbearing_assertions(
             )
             found += salvaged
     seen: set[str] = set()
-    return [a for a in found if not (a in seen or seen.add(a))]
+    deduped: list[str] = []
+    for a in found:
+        if a not in seen:
+            seen.add(a)
+            deduped.append(a)
+    return deduped
 
 
 def sample_numeric_claims(
@@ -155,18 +160,33 @@ def sample_numeric_claims(
     rng: random.Random | None = None,
 ) -> list[str]:
     """一般数值抽检：含数字且未被三路覆盖的句子，随机至多 k 条。"""
-    rng = rng or random
     cands = [
         s
         for s in _split_sentences(chapter_text)
         if _NUM_CLAIM_RE.search(s) and s not in exclude and not KEYWORD_RE.search(s)
     ]
+    if rng is None:
+        return random.sample(cands, min(k, len(cands)))
     return rng.sample(cands, min(k, len(cands)))
 
 
 # ---------------------------------------------------------------------------
 # 核验
 # ---------------------------------------------------------------------------
+
+
+_JUNK_START_CHARS = "|│#"  # 表格行 / 版式框线行 / 标题
+
+
+def is_junk_assertion(text: str) -> bool:
+    """非陈述句碎片不值得核验（round-7 实证：表格行/标题被当断言，必然 unverifiable，纯烧调用）。"""
+    s = text.strip()
+    return not s or s[0] in _JUNK_START_CHARS
+
+
+def assertion_key(assertion: str) -> str:
+    """断言缓存键：去全部空白（对措辞漂移的最小归一化，round-7 M1）。"""
+    return re.sub(r"\s+", "", assertion)
 
 
 async def verify_assertion(
@@ -215,10 +235,7 @@ def is_acknowledged(assertion: str, body_text: str) -> bool:
     marked = [s for s in _split_sentences(body_text) if PENDING_MARK in s]
     digits = re.findall(r"\d{2,}", assertion)
     kw = KEYWORD_RE.search(assertion)
-    return any(
-        any(d in s for d in digits) or (kw is not None and kw.group(0) in s)
-        for s in marked
-    )
+    return any(any(d in s for d in digits) or (kw is not None and kw.group(0) in s) for s in marked)
 
 
 async def with_retry(
@@ -244,10 +261,12 @@ async def with_retry(
 __all__ = [
     "KEYWORD_RE",
     "Verdict",
+    "assertion_key",
     "extract_keyword_assertions",
     "extract_ledger_assertions",
     "extract_loadbearing_assertions",
     "is_acknowledged",
+    "is_junk_assertion",
     "sample_numeric_claims",
     "verify_assertion",
     "with_retry",

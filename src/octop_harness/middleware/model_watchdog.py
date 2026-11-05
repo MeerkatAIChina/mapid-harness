@@ -36,9 +36,7 @@ class ModelWatchdogSettings:
     @classmethod
     def from_env(cls) -> ModelWatchdogSettings:
         enabled = os.environ.get("OCTOP_MODEL_WATCHDOG_ENABLED", "") == "1"
-        timeout = float(
-            os.environ.get("OCTOP_MODEL_WATCHDOG_TIMEOUT_S", DEFAULT_TIMEOUT_S)
-        )
+        timeout = float(os.environ.get("OCTOP_MODEL_WATCHDOG_TIMEOUT_S", DEFAULT_TIMEOUT_S))
         return cls(timeout_s=timeout, enabled=enabled)
 
     @classmethod
@@ -58,13 +56,9 @@ class ModelWatchdogMiddleware(AgentMiddleware[Any, Any]):
         if not self.settings.enabled:
             return await handler(request)
         try:
-            return await asyncio.wait_for(
-                handler(request), timeout=self.settings.timeout_s
-            )
+            return await asyncio.wait_for(handler(request), timeout=self.settings.timeout_s)
         except TimeoutError:
-            logger.warning(
-                "model_watchdog: call exceeded %ss", self.settings.timeout_s
-            )
+            logger.warning("model_watchdog: call exceeded %ss", self.settings.timeout_s)
             raise
 
     def wrap_model_call(self, request: Any, handler: Any) -> Any:

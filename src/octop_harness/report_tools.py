@@ -67,9 +67,7 @@ def merge_chapter_files(chapters_dir: Path, output: Path) -> dict[str, Any]:
         raise ValueError(f"章节目录为空（无 .md 文件）：{chapters_dir}")
     output = output.resolve()
     if output.parent == chapters_dir.resolve():
-        raise ValueError(
-            f"输出文件不能放在章节目录内（会被后续合并再次收入）：{output}"
-        )
+        raise ValueError(f"输出文件不能放在章节目录内（会被后续合并再次收入）：{output}")
 
     parts: list[str] = []
     per_file: list[dict[str, Any]] = []
@@ -77,10 +75,7 @@ def merge_chapter_files(chapters_dir: Path, output: Path) -> dict[str, Any]:
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError as exc:
-            raise ValueError(
-                f"章节文件不是合法 UTF-8：{path.name}（{exc}）。"
-                "请修正编码后重新合并。"
-            ) from exc
+            raise ValueError(f"章节文件不是合法 UTF-8：{path.name}（{exc}）。请修正编码后重新合并。") from exc
         per_file.append({"file": path.name, **text_stats(text)})
         parts.append(f"{CHAPTER_MARKER.format(name=path.name)}\n\n{text}")
 
@@ -88,9 +83,7 @@ def merge_chapter_files(chapters_dir: Path, output: Path) -> dict[str, Any]:
     total = text_stats(merged)
     # 校验基线 = 章节总和 + 标记自身开销（分隔符全是空白字符，不计入）。
     # 正常情况下偏差恒为 0，容差只吸收真正的异常（编码事故、内容丢失）。
-    marker_overhead = sum(
-        len(re.sub(r"\s+", "", CHAPTER_MARKER.format(name=path.name))) for path in chapters
-    )
+    marker_overhead = sum(len(re.sub(r"\s+", "", CHAPTER_MARKER.format(name=path.name))) for path in chapters)
     _check_volume(
         sum(item["non_ws_chars"] for item in per_file) + marker_overhead,
         total["non_ws_chars"],
@@ -151,13 +144,8 @@ def stats_for_path(path: Path) -> dict[str, Any]:
         files = sorted(path.glob("*.md"))
         if not files:
             raise ValueError(f"目录中无 .md 文件：{path}")
-        per_file: list[dict[str, Any]] = [
-            {"file": f.name, **text_stats(f.read_text(encoding="utf-8"))} for f in files
-        ]
-        total = {
-            key: sum(item[key] for item in per_file)
-            for key in ("non_ws_chars", "cjk_chars", "lines")
-        }
+        per_file: list[dict[str, Any]] = [{"file": f.name, **text_stats(f.read_text(encoding="utf-8"))} for f in files]
+        total = {key: sum(item[key] for item in per_file) for key in ("non_ws_chars", "cjk_chars", "lines")}
         return {"path": str(path), "files": len(per_file), "per_file": per_file, "total": total}
     if not path.is_file():
         raise ValueError(f"路径不存在：{path}")
@@ -173,9 +161,7 @@ def _format_stats(result: dict[str, Any]) -> str:
         f"合计: 非空白字符 {total['non_ws_chars']:,}，汉字 {total['cjk_chars']:,}，行 {total['lines']:,}",
     ]
     for item in result.get("per_file", []):
-        lines.append(
-            f"  {item['file']}: 非空白字符 {item['non_ws_chars']:,}，汉字 {item['cjk_chars']:,}"
-        )
+        lines.append(f"  {item['file']}: 非空白字符 {item['non_ws_chars']:,}，汉字 {item['cjk_chars']:,}")
     return "\n".join(lines)
 
 
@@ -239,15 +225,18 @@ def register(ctx: PluginContext) -> None:
             return f"Error: {exc}"
         except UnicodeDecodeError as exc:
             return f"Error: 章节文件不是合法 UTF-8（{exc}）"
-        summary = _format_stats({"path": result["output"], "files": result["files"],
-                                 "per_file": result["per_file"], "total": result["total"]})
+        summary = _format_stats(
+            {
+                "path": result["output"],
+                "files": result["files"],
+                "per_file": result["per_file"],
+                "total": result["total"],
+            }
+        )
         failures = _run_delivery_chain(dst)
         if failures:
             detail = "\n".join(f"- {f}" for f in failures)
-            return (
-                "Error: 交付链未通过（合并本体已完成，修复下列问题后重新调用本工具即可）："
-                f"\n{detail}"
-            )
+            return f"Error: 交付链未通过（合并本体已完成，修复下列问题后重新调用本工具即可）：\n{detail}"
         return f"合并完成。\n{summary}\n交付链：清理残留 {removed} 行；三格式构建与交付验收通过。"
 
     def report_stats(path: str = CHAPTERS_DIR) -> str:

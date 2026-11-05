@@ -45,9 +45,7 @@ def inject_current_date(request: Any, *, now: datetime | None = None) -> Any:
         blocks = list(content)
         if any(DATE_MARK in str(block) for block in blocks):
             return request
-        return request.override(
-            system_message=SystemMessage(content=[*blocks, {"type": "text", "text": note}])
-        )
+        return request.override(system_message=SystemMessage(content=[*blocks, {"type": "text", "text": note}]))
     prompt = request.system_prompt or ""
     if DATE_MARK in prompt:
         return request

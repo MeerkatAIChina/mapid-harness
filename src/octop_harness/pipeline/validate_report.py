@@ -31,19 +31,19 @@ class _AuditHTML(HTMLParser):
         self.text: list[str] = []
         self.charts = 0
 
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        classes = set(attrs.get("class", "").split())
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_map = dict(attrs)
+        classes = set((attrs_map.get("class") or "").split())
         if tag in ("script", "style"):
             self.skip += 1
         if "chart" in classes:
             self.charts += 1
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag: str) -> None:
         if tag in ("script", "style") and self.skip:
             self.skip -= 1
 
-    def handle_data(self, data):
+    def handle_data(self, data: str) -> None:
         if not self.skip:
             self.text.append(data)
 
@@ -112,20 +112,18 @@ def validate_report(output_dir: Path, base_name: str = "report") -> list[str]:
     pdf = output_dir / f"{base_name}.pdf"
     if pdf.is_file():
         try:
-            result = subprocess.run(
-                ["pdfinfo", str(pdf)], capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True, check=True)
             m = re.search(r"^Pages:\s+(\d+)", result.stdout, re.M)
             if m and int(m.group(1)) < 1:
                 failures.append("PDF 页数为 0")
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass
-        text = _pdf_text(pdf)
-        if text is None:
+        pdf_text = _pdf_text(pdf)
+        if pdf_text is None:
             # fail-closed（终审复验补修）：工具缺失 = 未检查，未检查 ≠ 通过
             failures.append("PDF 文本未检查：pdftotext 不可用或提取失败")
         else:
-            failures.extend(_scan_text_residues(text, "PDF"))
+            failures.extend(_scan_text_residues(pdf_text, "PDF"))
 
     return failures
 

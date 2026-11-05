@@ -22,14 +22,19 @@ Meerkat 文档工具链 v2: Markdown → HTML / PDF / Word（R4 移植版，去 
   bar / barh / line / area / pie / donut / radar / scatter / funnel / gauge
 """
 
+from __future__ import annotations
+
 import base64
+import contextlib
 import io
 import json
 import os
 import re
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 # ======================================================================
 # 常量: 字体 / 配色
@@ -41,11 +46,14 @@ _FONT_DIR = os.environ.get("LONG_REPORT_FONT_DIR", "/home/chinux/jupyterlab/meer
 _FONT_DIR_TTF = os.environ.get("LONG_REPORT_FONT_DIR_TTF", "/home/chinux/jupyterlab/meerkatai/fonts_ttf")
 
 
-def _resolve_mpl_fonts():
+def _resolve_mpl_fonts() -> tuple[str | None, str | None, str]:
     """matplotlib 用字体: 返回 (regular, bold, family)。支持 CFF 轮廓。"""
     candidates = [
-        (os.path.join(_FONT_DIR, "NotoSansCJKsc-Regular.ttf"),
-         os.path.join(_FONT_DIR, "NotoSansCJKsc-Bold.ttf"), "Noto Sans CJK SC"),
+        (
+            os.path.join(_FONT_DIR, "NotoSansCJKsc-Regular.ttf"),
+            os.path.join(_FONT_DIR, "NotoSansCJKsc-Bold.ttf"),
+            "Noto Sans CJK SC",
+        ),
         ("/System/Library/Fonts/PingFang.ttc", "/System/Library/Fonts/PingFang.ttc", "PingFang SC"),
         ("C:/Windows/Fonts/msyh.ttc", "C:/Windows/Fonts/msyhbd.ttc", "Microsoft YaHei"),
     ]
@@ -55,24 +63,30 @@ def _resolve_mpl_fonts():
     return None, None, "Helvetica"
 
 
-def _resolve_pdf_fonts():
+def _resolve_pdf_fonts() -> tuple[str | None, str | None, str | None, str | None]:
     """reportlab 用字体: 返回 (regular, bold, serif_regular, serif_bold)。必须 TrueType 轮廓。"""
     candidates = [
         # 1. cu2qu 转换后的 Noto TrueType (业界顶级, 由 convert_fonts.py 生成)
-        (os.path.join(_FONT_DIR_TTF, "NotoSansCJKsc-Regular.ttf"),
-         os.path.join(_FONT_DIR_TTF, "NotoSansCJKsc-Bold.ttf"),
-         os.path.join(_FONT_DIR_TTF, "NotoSerifCJKsc-Regular.ttf"),
-         os.path.join(_FONT_DIR_TTF, "NotoSerifCJKsc-Bold.ttf")),
+        (
+            os.path.join(_FONT_DIR_TTF, "NotoSansCJKsc-Regular.ttf"),
+            os.path.join(_FONT_DIR_TTF, "NotoSansCJKsc-Bold.ttf"),
+            os.path.join(_FONT_DIR_TTF, "NotoSerifCJKsc-Regular.ttf"),
+            os.path.join(_FONT_DIR_TTF, "NotoSerifCJKsc-Bold.ttf"),
+        ),
         # 2. Windows 系统字体 (立即可用): 微软雅黑 + 宋体
-        ("C:/Windows/Fonts/msyh.ttc",
-         "C:/Windows/Fonts/msyhbd.ttc",
-         "C:/Windows/Fonts/simsun.ttc",
-         "C:/Windows/Fonts/simsun.ttc"),
+        (
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "C:/Windows/Fonts/simsun.ttc",
+            "C:/Windows/Fonts/simsun.ttc",
+        ),
         # 3. 系统 TrueType 中文字体 (立即可用): Droid 黑体 + 文鼎明体
-        ("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-         "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-         "/usr/share/fonts/truetype/arphic/uming.ttc",
-         "/usr/share/fonts/truetype/arphic/uming.ttc"),
+        (
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",
+        ),
     ]
     for reg, bold, sreg, sbold in candidates:
         if reg and os.path.exists(reg):
@@ -82,8 +96,16 @@ def _resolve_pdf_fonts():
 
 # 专业数据可视化配色 (AntV G2 经典色板)
 PALETTE = [
-    "#5B8FF9", "#61DDAA", "#65789B", "#F6BD16", "#7262FD",
-    "#78D3F8", "#9661BC", "#F6903D", "#008685", "#F08BB4",
+    "#5B8FF9",
+    "#61DDAA",
+    "#65789B",
+    "#F6BD16",
+    "#7262FD",
+    "#78D3F8",
+    "#9661BC",
+    "#F6903D",
+    "#008685",
+    "#F08BB4",
 ]
 
 # HTML 主题色
@@ -183,21 +205,62 @@ hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
 # ======================================================================
 
 _SCIENCE_COMMANDS = {
-    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "Delta": "Δ",
-    "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ", "eta": "η", "theta": "θ", "lambda": "λ",
-    "mu": "μ", "nu": "ν", "pi": "π", "rho": "ρ", "sigma": "σ", "tau": "τ",
-    "phi": "φ", "omega": "ω", "partial": "∂", "nabla": "∇", "sum": "∑",
-    "prod": "∏", "sqrt": "√", "infty": "∞", "times": "×", "cdot": "×", "div": "÷",
-    "pm": "±", "mp": "∓", "leq": "≤", "geq": "≥", "neq": "≠", "approx": "≈",
-    "sim": "~", "to": "→", "rightarrow": "→", "leftarrow": "←", "in": "∈",
-    "cap": "∩", "cup": "∪", "circ": "°", "log": "log", "ln": "ln", "exp": "exp",
-    "min": "min", "max": "max", "sin": "sin", "cos": "cos", "tan": "tan",
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "Delta": "Δ",
+    "epsilon": "ε",
+    "varepsilon": "ε",
+    "zeta": "ζ",
+    "eta": "η",
+    "theta": "θ",
+    "lambda": "λ",
+    "mu": "μ",
+    "nu": "ν",
+    "pi": "π",
+    "rho": "ρ",
+    "sigma": "σ",
+    "tau": "τ",
+    "phi": "φ",
+    "omega": "ω",
+    "partial": "∂",
+    "nabla": "∇",
+    "sum": "∑",
+    "prod": "∏",
+    "sqrt": "√",
+    "infty": "∞",
+    "times": "×",
+    "cdot": "×",
+    "div": "÷",
+    "pm": "±",
+    "mp": "∓",
+    "leq": "≤",
+    "geq": "≥",
+    "neq": "≠",
+    "approx": "≈",
+    "sim": "~",
+    "to": "→",
+    "rightarrow": "→",
+    "leftarrow": "←",
+    "in": "∈",
+    "cap": "∩",
+    "cup": "∪",
+    "circ": "°",
+    "log": "log",
+    "ln": "ln",
+    "exp": "exp",
+    "min": "min",
+    "max": "max",
+    "sin": "sin",
+    "cos": "cos",
+    "tan": "tan",
 }
 _SUB = str.maketrans("0123456789+-=()aeinorstx", "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑᵢₙₒᵣₛₜₓ")
 _SUP = str.maketrans("0123456789+-=()in", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ")
 
 
-def _replace_braced(expr, names, arity, formatter):
+def _replace_braced(expr: str, names: str, arity: int, formatter: Callable[..., str]) -> str:
     """替换带平衡花括号的 LaTeX 命令，支持参数内的嵌套下标。"""
     match = re.search(r"\\(?:" + names + r")\s*", expr)
     if not match:
@@ -216,11 +279,11 @@ def _replace_braced(expr, names, arity, formatter):
             cursor += 1
         if depth:
             return expr
-        args.append(expr[start:cursor - 1])
-    return expr[:match.start()] + formatter(*args) + expr[cursor:]
+        args.append(expr[start : cursor - 1])
+    return expr[: match.start()] + formatter(*args) + expr[cursor:]
 
 
-def _latex_to_text(expr):
+def _latex_to_text(expr: str) -> str:
     """把常用 LaTeX 科学表达转为可读 Unicode，不丢弃变量或运算关系。"""
     expr = expr.replace("\x0c", "\\f").replace("\t", "\\t")
     expr = re.sub(r"\s+", " ", expr).strip()
@@ -237,7 +300,7 @@ def _latex_to_text(expr):
     expr = expr.replace("\\%", "%").replace("\\,", " ").replace("\\;", " ").replace("\\!", "")
     expr = expr.replace("\\ ", " ").replace("\\{", "{").replace("\\}", "}")
 
-    def script(match):
+    def script(match: re.Match[str]) -> str:
         marker, content = match.group(1), match.group(2).strip()
         # 不使用字体覆盖不完整的 Unicode 上下标字母，避免 PDF 方框。
         return ("[" + content + "]") if marker == "_" else ("^(" + content + ")")
@@ -247,34 +310,34 @@ def _latex_to_text(expr):
     return expr.replace("{", "").replace("}", "").strip()
 
 
-def _normalize_literal_science(text):
+def _normalize_literal_science(text: str) -> str:
     """规范化原稿直接写出的 Unicode 上下标与变量下标，避免字体缺字。"""
     text = text.replace("⋅", "×").replace("∼", "~")
-    sup = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ", "0123456789+-=()in"))
-    sub = dict(zip("₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑᵢₙₒᵣₛₜₓ", "0123456789+-=()aeinorstx"))
-    text = re.sub(r"[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ]+",
-                  lambda m: "^(" + "".join(sup.get(c, c) for c in m.group(0)) + ")", text)
-    text = re.sub(r"[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑᵢₙₒᵣₛₜₓ]+",
-                  lambda m: "[" + "".join(sub.get(c, c) for c in m.group(0)) + "]", text)
+    sup = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ", "0123456789+-=()in", strict=True))
+    sub = dict(zip("₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑᵢₙₒᵣₛₜₓ", "0123456789+-=()aeinorstx", strict=True))
+    text = re.sub(r"[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ]+", lambda m: "^(" + "".join(sup.get(c, c) for c in m.group(0)) + ")", text)
+    text = re.sub(
+        r"[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑᵢₙₒᵣₛₜₓ]+", lambda m: "[" + "".join(sub.get(c, c) for c in m.group(0)) + "]", text
+    )
     return re.sub(r"(?<![A-Za-z0-9_])([A-Za-zΑ-ω]+)_([A-Za-z][A-Za-z0-9]*)", r"\1[\2]", text)
 
 
-def _inline_science(text):
+def _inline_science(text: str) -> str:
     """渲染行内公式；$/单位 是成本表达，不作为公式分隔符。"""
     text = _normalize_literal_science(text)
     text = re.sub(r"\$/([A-Za-z])", r"美元/\1", text)
     return re.sub(r"(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)", lambda m: _latex_to_text(m.group(1)), text, flags=re.S)
 
 
-_MATH_CACHE = {}
-_MATH_TMP = None
+_MATH_CACHE: dict[str, dict[str, Any]] = {}
+_MATH_TMP: Path | None = None
 _MATH_DPI = 180
 
 
 _MATH_BACKEND = os.environ.get("LONG_REPORT_MATH_BACKEND", "mathtext")
 
 
-def _math_assets_mathtext(expr):
+def _math_assets_mathtext(expr: str) -> dict[str, Any]:
     """LaTeX → matplotlib mathtext 排版（零外部依赖，跨平台）。
 
     注意：mathtext 对公式内中文支持差（缺字形警告），公式重的文档用
@@ -287,41 +350,48 @@ def _math_assets_mathtext(expr):
     import matplotlib
 
     matplotlib.use("Agg")
-    from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
 
     fig = Figure()
-    t = fig.text(0, 0, f"${expr}$", fontsize=14)
-    FigureCanvasAgg(fig).draw()
+    fig.text(0, 0, f"${expr}$", fontsize=14)
+    FigureCanvasAgg(fig).draw()  # type: ignore[no-untyped-call]
     buf_png = io.BytesIO()
-    fig.savefig(buf_png, format="png", dpi=192, transparent=True,
-                bbox_inches="tight", pad_inches=0.02)
+    fig.savefig(buf_png, format="png", dpi=192, transparent=True, bbox_inches="tight", pad_inches=0.02)
     buf_svg = io.BytesIO()
-    fig.savefig(buf_svg, format="svg", transparent=True,
-                bbox_inches="tight", pad_inches=0.02)
+    fig.savefig(buf_svg, format="svg", transparent=True, bbox_inches="tight", pad_inches=0.02)
     from PIL import Image as _PILImage
 
     png = buf_png.getvalue()
     with _PILImage.open(io.BytesIO(png)) as im:
         width, height = im.size
-    return {"png": png, "svg": buf_svg.getvalue().decode("utf-8"),
-            "width": width, "height": height, "dpi": 192, "key": key, "expr": expr}
+    return {
+        "png": png,
+        "svg": buf_svg.getvalue().decode("utf-8"),
+        "width": width,
+        "height": height,
+        "dpi": 192,
+        "key": key,
+        "expr": expr,
+    }
 
 
-def _math_assets(expr):
+def _math_assets(expr: str) -> dict[str, Any]:
     """LaTeX → 数学排版，缓存尺寸供三种格式使用（后端见 _MATH_BACKEND）。"""
     import hashlib
+
     key = hashlib.sha256(expr.strip().encode("utf-8")).hexdigest()
     if key not in _MATH_CACHE:
         if _MATH_BACKEND == "chrome":
             from mathml_renderer import math_assets
+
             _MATH_CACHE[key] = math_assets(expr)
         else:
             _MATH_CACHE[key] = _math_assets_mathtext(expr)
     return _MATH_CACHE[key]
 
 
-def _math_file(expr):
+def _math_file(expr: str) -> str:
     """ReportLab 行内图片需要文件路径，按公式哈希缓存。"""
     global _MATH_TMP
     asset = _math_assets(expr)
@@ -333,13 +403,13 @@ def _math_file(expr):
     return str(path)
 
 
-def _math_placeholders(text, fmt):
+def _math_placeholders(text: str, fmt: str) -> tuple[str, dict[str, str]]:
     """先替换成数学图片占位符，待 Markdown 行内样式处理完毕后恢复。"""
-    assets = []
+    assets: list[dict[str, Any]] = []
     text = _normalize_literal_science(text)
     text = re.sub(r"\$/([A-Za-z])", r"美元/\1", text)
 
-    def replace(match):
+    def replace(match: re.Match[str]) -> str:
         index = len(assets)
         asset = _math_assets(match.group(1))
         assets.append(asset)
@@ -351,15 +421,18 @@ def _math_placeholders(text, fmt):
         width = asset["width"] * 72 / asset["dpi"]
         height = asset["height"] * 72 / asset["dpi"]
         if fmt == "html":
-            rendered[f"@@MATH{index}@@"] = (f'<span class="inline-math" role="math" '
-                f'aria-label="{_escape_html(asset["expr"])}">{asset["svg"]}</span>')
+            rendered[f"@@MATH{index}@@"] = (
+                f'<span class="inline-math" role="math" '
+                f'aria-label="{_escape_html(asset["expr"])}">{asset["svg"]}</span>'
+            )
         else:
-            rendered[f"@@MATH{index}@@"] = (f'<img src="{_math_file(asset["expr"])}" '
-                f'width="{width:.2f}" height="{height:.2f}" valign="-2"/>')
+            rendered[f"@@MATH{index}@@"] = (
+                f'<img src="{_math_file(asset["expr"])}" width="{width:.2f}" height="{height:.2f}" valign="-2"/>'
+            )
     return text, rendered
 
 
-def _strip_inline(text):
+def _strip_inline(text: str) -> str:
     """去除行内标记, 得到纯文本。"""
     text = _inline_science(text)
     text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", text)
@@ -370,10 +443,11 @@ def _strip_inline(text):
     return text
 
 
-def _inline_to_html(text):
+def _inline_to_html(text: str) -> str:
     """行内标记 → HTML (转义 + 加粗/斜体/代码/链接/数学图片)。"""
     text, math_images = _math_placeholders(text, "html")
-    def esc(s):
+
+    def esc(s: str) -> str:
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     text = esc(text)
@@ -389,13 +463,13 @@ def _inline_to_html(text):
     return text
 
 
-def _parse_blocks(md_text):
+def _parse_blocks(md_text: str) -> list[tuple[str, Any]]:
     """把 markdown 解析成结构化块: (type, payload)。"""
-    blocks = []
+    blocks: list[tuple[str, Any]] = []
     lines = md_text.split("\n")
     i, n = 0, len(lines)
 
-    def _chart_or_code(line, i):
+    def _chart_or_code(line: str, i: int) -> tuple[tuple[str, Any], int] | None:
         # fenced code block: ```chart ... ``` 或 ```lang ... ```
         m = re.match(r"^```\s*(\w*)\s*$", line.strip())
         if not m:
@@ -509,8 +583,11 @@ def _parse_blocks(md_text):
 
         # 段落
         para = []
-        while i < n and lines[i].strip() and not re.match(
-                r"^(#{1,6}\s|\||\s*[-*+]\s|\s*\d+\.\s|!\[|>|```|\$\$|-{3,}|\*{3,}|_{3,})", lines[i]):
+        while (
+            i < n
+            and lines[i].strip()
+            and not re.match(r"^(#{1,6}\s|\||\s*[-*+]\s|\s*\d+\.\s|!\[|>|```|\$\$|-{3,}|\*{3,}|_{3,})", lines[i])
+        ):
             para.append(lines[i].strip())
             i += 1
         blocks.append(("para", " ".join(para)))
@@ -518,7 +595,7 @@ def _parse_blocks(md_text):
     return blocks
 
 
-def _parse_table_rows(rows):
+def _parse_table_rows(rows: list[str]) -> tuple[list[str] | None, list[list[str]]]:
     """解析 markdown 表格行为 header + data 行 (跳过 |---| 分隔行)。"""
     header, data = None, []
     for r in rows:
@@ -532,7 +609,7 @@ def _parse_table_rows(rows):
     return header, data
 
 
-def _extract_title(blocks):
+def _extract_title(blocks: list[tuple[str, Any]]) -> str:
     """取第一个 H1 作为文档标题。"""
     for typ, payload in blocks:
         if typ == "heading" and payload[0] == 1:
@@ -547,16 +624,17 @@ def _extract_title(blocks):
 _mpl_ready = False
 
 
-def _mpl_setup():
+def _mpl_setup() -> bool:
     """惰性初始化 matplotlib (字体 + 样式), 只做一次。"""
     global _mpl_ready
     if _mpl_ready:
         return True
     try:
         import matplotlib
+
         matplotlib.use("Agg")
-        from matplotlib import font_manager
         import matplotlib.pyplot as plt
+        from matplotlib import font_manager
 
         reg, bold, fam = _resolve_mpl_fonts()
         registered = set()
@@ -568,35 +646,37 @@ def _mpl_setup():
                 except Exception:
                     pass
 
-        plt.rcParams.update({
-            "font.sans-serif": [fam, "DejaVu Sans"],
-            "font.family": "sans-serif",
-            "axes.unicode_minus": False,
-            "figure.dpi": 110,
-            "svg.fonttype": "path",
-            "axes.edgecolor": "#cbd5e1",
-            "axes.linewidth": 0.8,
-            "axes.grid": True,
-            "grid.color": "#e2e8f0",
-            "grid.linewidth": 0.6,
-            "axes.axisbelow": True,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "axes.titlesize": 14,
-            "axes.titleweight": "bold",
-            "axes.labelsize": 11,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "legend.frameon": False,
-            "legend.fontsize": 10,
-        })
+        plt.rcParams.update(
+            {
+                "font.sans-serif": [fam, "DejaVu Sans"],
+                "font.family": "sans-serif",
+                "axes.unicode_minus": False,
+                "figure.dpi": 110,
+                "svg.fonttype": "path",
+                "axes.edgecolor": "#cbd5e1",
+                "axes.linewidth": 0.8,
+                "axes.grid": True,
+                "grid.color": "#e2e8f0",
+                "grid.linewidth": 0.6,
+                "axes.axisbelow": True,
+                "axes.spines.top": False,
+                "axes.spines.right": False,
+                "axes.titlesize": 14,
+                "axes.titleweight": "bold",
+                "axes.labelsize": 11,
+                "xtick.labelsize": 10,
+                "ytick.labelsize": 10,
+                "legend.frameon": False,
+                "legend.fontsize": 10,
+            }
+        )
         _mpl_ready = True
         return True
     except Exception:
         return False
 
 
-def _chart_axes(chart, fig):
+def _chart_axes(chart: dict[str, Any], fig: Any) -> Any:
     """根据图表高度返回 axes。"""
     h = float(chart.get("height") or 0)
     if h <= 0:
@@ -607,8 +687,9 @@ def _chart_axes(chart, fig):
     return fig.subplots()
 
 
-def _bar_chart(ax, chart):
+def _bar_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
+
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     x = np.arange(len(cats))
@@ -617,11 +698,9 @@ def _bar_chart(ax, chart):
     for si, s in enumerate(series):
         data = [float(v) for v in s.get("data", [])]
         off = (si - (len(series) - 1) / 2) * width
-        bars = ax.bar(x + off, data, width=width, label=s.get("name", ""),
-                      color=PALETTE[si % len(PALETTE)], zorder=3)
-        for b, v in zip(bars, data):
-            ax.text(b.get_x() + b.get_width() / 2, b.get_height(),
-                    f"{v:g}{unit}", ha="center", va="bottom", fontsize=8)
+        bars = ax.bar(x + off, data, width=width, label=s.get("name", ""), color=PALETTE[si % len(PALETTE)], zorder=3)
+        for b, v in zip(bars, data, strict=False):
+            ax.text(b.get_x() + b.get_width() / 2, b.get_height(), f"{v:g}{unit}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(x)
     ax.set_xticklabels(cats)
     if chart.get("x_label"):
@@ -632,8 +711,9 @@ def _bar_chart(ax, chart):
         ax.legend()
 
 
-def _barh_chart(ax, chart):
+def _barh_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
+
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     y = np.arange(len(cats))
@@ -642,11 +722,11 @@ def _barh_chart(ax, chart):
     for si, s in enumerate(series):
         data = [float(v) for v in s.get("data", [])]
         off = (si - (len(series) - 1) / 2) * height
-        bars = ax.barh(y + off, data, height=height, label=s.get("name", ""),
-                       color=PALETTE[si % len(PALETTE)], zorder=3)
-        for b, v in zip(bars, data):
-            ax.text(b.get_width(), b.get_y() + b.get_height() / 2,
-                    f" {v:g}{unit}", va="center", ha="left", fontsize=8)
+        bars = ax.barh(
+            y + off, data, height=height, label=s.get("name", ""), color=PALETTE[si % len(PALETTE)], zorder=3
+        )
+        for b, v in zip(bars, data, strict=False):
+            ax.text(b.get_width(), b.get_y() + b.get_height() / 2, f" {v:g}{unit}", va="center", ha="left", fontsize=8)
     ax.set_yticks(y)
     ax.set_yticklabels(cats)
     if chart.get("x_label"):
@@ -655,16 +735,24 @@ def _barh_chart(ax, chart):
         ax.legend()
 
 
-def _line_chart(ax, chart):
+def _line_chart(ax: Any, chart: dict[str, Any]) -> None:
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     x = list(range(len(cats)))
     unit = chart.get("unit") or ""
     for si, s in enumerate(series):
         data = [float(v) for v in s.get("data", [])]
-        ax.plot(x, data, marker="o", linewidth=2, markersize=5,
-                label=s.get("name", ""), color=PALETTE[si % len(PALETTE)], zorder=3)
-        for xi, v in zip(x, data):
+        ax.plot(
+            x,
+            data,
+            marker="o",
+            linewidth=2,
+            markersize=5,
+            label=s.get("name", ""),
+            color=PALETTE[si % len(PALETTE)],
+            zorder=3,
+        )
+        for xi, v in zip(x, data, strict=False):
             ax.text(xi, v, f"{v:g}{unit}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(x)
     ax.set_xticklabels(cats)
@@ -676,16 +764,14 @@ def _line_chart(ax, chart):
         ax.legend()
 
 
-def _area_chart(ax, chart):
+def _area_chart(ax: Any, chart: dict[str, Any]) -> None:
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     x = list(range(len(cats)))
-    unit = chart.get("unit") or ""
     for si, s in enumerate(series):
         data = [float(v) for v in s.get("data", [])]
         ax.fill_between(x, data, alpha=0.25, color=PALETTE[si % len(PALETTE)])
-        ax.plot(x, data, linewidth=2, label=s.get("name", ""),
-                color=PALETTE[si % len(PALETTE)], zorder=3)
+        ax.plot(x, data, linewidth=2, label=s.get("name", ""), color=PALETTE[si % len(PALETTE)], zorder=3)
     ax.set_xticks(x)
     ax.set_xticklabels(cats)
     if chart.get("x_label"):
@@ -696,45 +782,50 @@ def _area_chart(ax, chart):
         ax.legend()
 
 
-def _pie_chart(ax, chart, donut=False):
+def _pie_chart(ax: Any, chart: dict[str, Any], donut: bool = False) -> None:
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     values = [float(v) for v in (series[0].get("data", []) if series else [])]
     if not values:
         return
-    total = sum(values) or 1
     colors = [PALETTE[i % len(PALETTE)] for i in range(len(values))]
     if donut:
-        wedges, _texts, _autotexts = ax.pie(values, labels=cats, colors=colors, startangle=90,
-                                            wedgeprops=dict(width=0.42, edgecolor="white", linewidth=2),
-                                            autopct=lambda p: f"{p:.1f}%")
+        wedges, _texts, _autotexts = ax.pie(
+            values,
+            labels=cats,
+            colors=colors,
+            startangle=90,
+            wedgeprops=dict(width=0.42, edgecolor="white", linewidth=2),
+            autopct=lambda p: f"{p:.1f}%",
+        )
     else:
-        wedges, _texts, _autotexts = ax.pie(values, labels=cats, colors=colors, startangle=90,
-                                            autopct=lambda p: f"{p:.1f}%")
+        wedges, _texts, _autotexts = ax.pie(
+            values, labels=cats, colors=colors, startangle=90, autopct=lambda p: f"{p:.1f}%"
+        )
     for w in wedges:
         w.set_edgecolor("white")
         w.set_linewidth(1.5)
     ax.axis("equal")
 
 
-def _radar_chart(ax, chart):
+def _radar_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
+
     cats = chart.get("categories") or []
     series = chart.get("series") or []
-    N = len(cats)
-    if N < 3:
+    n = len(cats)
+    if n < 3:
         return
-    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
     angles += angles[:1]
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
     for si, s in enumerate(series):
         data = [float(v) for v in s.get("data", [])]
-        if len(data) != N:
+        if len(data) != n:
             continue
         vals = data + data[:1]
-        ax.plot(angles, vals, linewidth=2, label=s.get("name", ""),
-                color=PALETTE[si % len(PALETTE)])
+        ax.plot(angles, vals, linewidth=2, label=s.get("name", ""), color=PALETTE[si % len(PALETTE)])
         ax.fill(angles, vals, alpha=0.2, color=PALETTE[si % len(PALETTE)])
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(cats, fontsize=10)
@@ -742,7 +833,7 @@ def _radar_chart(ax, chart):
         ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1.1))
 
 
-def _scatter_chart(ax, chart):
+def _scatter_chart(ax: Any, chart: dict[str, Any]) -> None:
     series = chart.get("series") or []
     for si, s in enumerate(series):
         pts = s.get("data", [])
@@ -750,12 +841,12 @@ def _scatter_chart(ax, chart):
         ys = [float(p[1]) for p in pts if isinstance(p, (list, tuple)) and len(p) >= 2]
         if xs:
             sizes = [35 + 25 * float(p[2]) if len(p) > 2 else 55 for p in pts]
-            ax.scatter(xs, ys, s=sizes, alpha=0.8, label=s.get("name", ""),
-                       color=PALETTE[si % len(PALETTE)], zorder=3)
+            ax.scatter(xs, ys, s=sizes, alpha=0.8, label=s.get("name", ""), color=PALETTE[si % len(PALETTE)], zorder=3)
             for p in pts:
                 if len(p) > 3:
-                    ax.annotate(str(p[3]), (float(p[0]), float(p[1])), xytext=(5, 5),
-                                textcoords="offset points", fontsize=8)
+                    ax.annotate(
+                        str(p[3]), (float(p[0]), float(p[1])), xytext=(5, 5), textcoords="offset points", fontsize=8
+                    )
     if chart.get("x_label"):
         ax.set_xlabel(chart["x_label"])
     if chart.get("y_label"):
@@ -764,8 +855,9 @@ def _scatter_chart(ax, chart):
         ax.legend()
 
 
-def _funnel_chart(ax, chart):
+def _funnel_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
+
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     values = [float(v) for v in (series[0].get("data", []) if series else [])]
@@ -782,8 +874,9 @@ def _funnel_chart(ax, chart):
     ax.set_xlim(0, max(values) * 1.25)
 
 
-def _gauge_chart(ax, chart):
+def _gauge_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
+
     series = chart.get("series") or []
     value = float(series[0].get("data", [0])[0]) if series and series[0].get("data") else 0
     vmin = float(chart.get("min", 0))
@@ -793,8 +886,13 @@ def _gauge_chart(ax, chart):
     ax.plot(np.cos(theta) * r, np.sin(theta) * r, color="#cbd5e1", linewidth=12, solid_capstyle="round")
     ratio = max(0.0, min(1.0, (value - vmin) / (vmax - vmin) if vmax > vmin else 0))
     n_on = int(ratio * 100)
-    ax.plot(np.cos(theta[:max(n_on, 1)]) * r, np.sin(theta[:max(n_on, 1)]) * r,
-            color="#2563eb", linewidth=12, solid_capstyle="round")
+    ax.plot(
+        np.cos(theta[: max(n_on, 1)]) * r,
+        np.sin(theta[: max(n_on, 1)]) * r,
+        color="#2563eb",
+        linewidth=12,
+        solid_capstyle="round",
+    )
     ax.text(0, -0.25, f"{value:g}", ha="center", va="center", fontsize=28, fontweight="bold")
     ax.text(0, -0.55, chart.get("title") or "", ha="center", va="center", fontsize=10, color="#64748b")
     ax.set_xlim(-1.3, 1.3)
@@ -802,55 +900,98 @@ def _gauge_chart(ax, chart):
     ax.axis("off")
 
 
-def _flow_chart(ax, chart):
+def _flow_chart(ax: Any, chart: dict[str, Any]) -> None:
     import textwrap
-    from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
     stages = chart.get("categories") or []
     if not stages:
         return
     for i, stage in enumerate(stages):
-        box = FancyBboxPatch((i - .36, -.16), .72, .32, boxstyle="round,pad=0.035,rounding_size=0.06",
-                             facecolor="#EEF3F6", edgecolor="#2F5D7C", linewidth=1.5)
+        box = FancyBboxPatch(
+            (i - 0.36, -0.16),
+            0.72,
+            0.32,
+            boxstyle="round,pad=0.035,rounding_size=0.06",
+            facecolor="#EEF3F6",
+            edgecolor="#2F5D7C",
+            linewidth=1.5,
+        )
         ax.add_patch(box)
         ax.text(i, 0, textwrap.fill(stage, 7), ha="center", va="center", fontsize=9, color="#24313A")
         if i < len(stages) - 1:
-            ax.add_patch(FancyArrowPatch((i + .38, 0), (i + .62, 0), arrowstyle="-|>",
-                                         mutation_scale=13, color="#4E8A75", linewidth=1.5))
-    ax.set_xlim(-.55, len(stages) - .45)
-    ax.set_ylim(-.55, .55)
+            ax.add_patch(
+                FancyArrowPatch(
+                    (i + 0.38, 0), (i + 0.62, 0), arrowstyle="-|>", mutation_scale=13, color="#4E8A75", linewidth=1.5
+                )
+            )
+    ax.set_xlim(-0.55, len(stages) - 0.45)
+    ax.set_ylim(-0.55, 0.55)
     ax.axis("off")
 
 
-def _graph_chart(ax, chart):
+def _graph_chart(ax: Any, chart: dict[str, Any]) -> None:
     import textwrap
-    from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
     nodes = {n["name"]: n for n in chart.get("nodes", [])}
     for link in chart.get("links", []):
         source, target = nodes.get(link.get("source")), nodes.get(link.get("target"))
         if not source or not target:
             continue
-        arrow = FancyArrowPatch((source["x"], source["y"]), (target["x"], target["y"]),
-                                arrowstyle="-|>", mutation_scale=12, color="#78909C", linewidth=1.2,
-                                connectionstyle="arc3,rad=0.06", shrinkA=28, shrinkB=28)
+        arrow = FancyArrowPatch(
+            (source["x"], source["y"]),
+            (target["x"], target["y"]),
+            arrowstyle="-|>",
+            mutation_scale=12,
+            color="#78909C",
+            linewidth=1.2,
+            connectionstyle="arc3,rad=0.06",
+            shrinkA=28,
+            shrinkB=28,
+        )
         ax.add_patch(arrow)
-        ax.text((source["x"] + target["x"]) / 2, (source["y"] + target["y"]) / 2 + .035,
-                link.get("label", ""), fontsize=7, color="#667780", ha="center")
+        ax.text(
+            (source["x"] + target["x"]) / 2,
+            (source["y"] + target["y"]) / 2 + 0.035,
+            link.get("label", ""),
+            fontsize=7,
+            color="#667780",
+            ha="center",
+        )
     for i, node in enumerate(nodes.values()):
-        box = FancyBboxPatch((node["x"] - .105, node["y"] - .055), .21, .11,
-                             boxstyle="round,pad=0.018,rounding_size=0.025",
-                             facecolor=PALETTE[i % len(PALETTE)], edgecolor="white", linewidth=1.2)
+        box = FancyBboxPatch(
+            (node["x"] - 0.105, node["y"] - 0.055),
+            0.21,
+            0.11,
+            boxstyle="round,pad=0.018,rounding_size=0.025",
+            facecolor=PALETTE[i % len(PALETTE)],
+            edgecolor="white",
+            linewidth=1.2,
+        )
         ax.add_patch(box)
-        ax.text(node["x"], node["y"], textwrap.fill(node["name"], 9), color="white",
-                fontsize=8, ha="center", va="center", fontweight="bold")
-    ax.set_xlim(-.03, 1.03)
-    ax.set_ylim(-.03, 1.03)
+        ax.text(
+            node["x"],
+            node["y"],
+            textwrap.fill(node["name"], 9),
+            color="white",
+            fontsize=8,
+            ha="center",
+            va="center",
+            fontweight="bold",
+        )
+    ax.set_xlim(-0.03, 1.03)
+    ax.set_ylim(-0.03, 1.03)
     ax.set_aspect("equal")
     ax.axis("off")
 
 
-def _heatmap_chart(ax, chart):
+def _heatmap_chart(ax: Any, chart: dict[str, Any]) -> None:
     import numpy as np
     from matplotlib.colors import LinearSegmentedColormap
+
     cats = chart.get("categories") or []
     series = chart.get("series") or []
     values = np.array([[float(v) for v in s.get("data", [])] for s in series])
@@ -860,25 +1001,42 @@ def _heatmap_chart(ax, chart):
     ax.set_yticks(range(len(series)), [s.get("name", "") for s in series])
     for y in range(values.shape[0]):
         for x in range(values.shape[1]):
-            ax.text(x, y, f"{values[y, x]:g}", ha="center", va="center", fontsize=9,
-                    color="white" if values[y, x] > (values.min() + values.max()) / 2 else "#24313A")
-    ax.figure.colorbar(image, ax=ax, fraction=.035, pad=.03)
+            ax.text(
+                x,
+                y,
+                f"{values[y, x]:g}",
+                ha="center",
+                va="center",
+                fontsize=9,
+                color="white" if values[y, x] > (values.min() + values.max()) / 2 else "#24313A",
+            )
+    ax.figure.colorbar(image, ax=ax, fraction=0.035, pad=0.03)
 
 
-_CHART_RENDERERS = {
-    "bar": _bar_chart, "barh": _barh_chart, "line": _line_chart,
-    "area": _area_chart, "pie": _pie_chart, "donut": lambda ax, c: _pie_chart(ax, c, donut=True),
-    "radar": _radar_chart, "scatter": _scatter_chart, "funnel": _funnel_chart,
-    "gauge": _gauge_chart, "flow": _flow_chart, "graph": _graph_chart, "heatmap": _heatmap_chart,
+_CHART_RENDERERS: dict[str, Callable[[Any, dict[str, Any]], None]] = {
+    "bar": _bar_chart,
+    "barh": _barh_chart,
+    "line": _line_chart,
+    "area": _area_chart,
+    "pie": _pie_chart,
+    "donut": lambda ax, c: _pie_chart(ax, c, donut=True),
+    "radar": _radar_chart,
+    "scatter": _scatter_chart,
+    "funnel": _funnel_chart,
+    "gauge": _gauge_chart,
+    "flow": _flow_chart,
+    "graph": _graph_chart,
+    "heatmap": _heatmap_chart,
 }
 
 
-def _chart_to_svg(chart):
+def _chart_to_svg(chart: dict[str, Any]) -> str | None:
     """渲染图表为 SVG 字符串 (矢量, 供 HTML)。失败返回 None。"""
     if not _mpl_setup():
         return None
     try:
         import matplotlib.pyplot as plt
+
         fig = plt.figure()
         ax = _chart_axes(chart, fig)
         renderer = _CHART_RENDERERS.get(chart.get("type", "bar"))
@@ -886,7 +1044,6 @@ def _chart_to_svg(chart):
             return None
         if chart.get("type") in ("radar", "pie", "donut", "gauge"):
             if chart.get("type") == "radar":
-                import numpy as np
                 ax.remove()
                 ax = fig.add_subplot(111, polar=True)
             else:
@@ -905,19 +1062,19 @@ def _chart_to_svg(chart):
         return None
 
 
-def _chart_to_png(chart, dpi=220):
+def _chart_to_png(chart: dict[str, Any], dpi: int = 220) -> bytes | None:
     """渲染图表为 PNG bytes (供 PDF/DOCX/XLSX/PPTX)。失败返回 None。"""
     if not _mpl_setup():
         return None
     try:
         import matplotlib.pyplot as plt
+
         fig = plt.figure()
         ax = _chart_axes(chart, fig)
         renderer = _CHART_RENDERERS.get(chart.get("type", "bar"))
         if not renderer:
             return None
         if chart.get("type") == "radar":
-            import numpy as np
             ax.remove()
             ax = fig.add_subplot(111, polar=True)
         renderer(ax, chart)
@@ -936,7 +1093,8 @@ def _chart_to_png(chart, dpi=220):
 # HTML 渲染器 (自包含, 专业排版, 可打印 PDF)
 # ======================================================================
 
-def md_to_html(md_text, output_path):
+
+def md_to_html(md_text: str, output_path: str | Path) -> str | Path:
     blocks = _parse_blocks(md_text)
     title = _extract_title(blocks)
 
@@ -948,24 +1106,24 @@ def md_to_html(md_text, output_path):
     has_toc = len(toc_entries) >= 3
 
     parts = []
-    parts.append("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">")
-    parts.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
+    parts.append('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">')
+    parts.append('<meta name="viewport" content="width=device-width, initial-scale=1">')
     parts.append(f"<title>{title}</title>")
     parts.append(f"<style>{_HTML_CSS}</style>\n</head>\n<body>")
 
     # 封面
-    parts.append("<header class=\"cover\">")
+    parts.append('<header class="cover">')
     parts.append(f"<h1>{title}</h1>")
-    parts.append("<p class=\"subtitle\">Meerkat AI · 智能报告</p>")
-    parts.append("<span class=\"meta\">由 AI 自动生成 · 数据图表</span>")
+    parts.append('<p class="subtitle">Meerkat AI · 智能报告</p>')
+    parts.append('<span class="meta">由 AI 自动生成 · 数据图表</span>')
     parts.append("</header>")
 
     # 目录
     if has_toc:
-        parts.append("<nav class=\"toc\"><h2>目录</h2><ul>")
+        parts.append('<nav class="toc"><h2>目录</h2><ul>')
         for idx, (lvl, txt) in enumerate(toc_entries):
             cls = "lvl2" if lvl == 2 else ""
-            parts.append(f"<li><a class=\"{cls}\" href=\"#sec-{idx}\">{txt}</a></li>")
+            parts.append(f'<li><a class="{cls}" href="#sec-{idx}">{txt}</a></li>')
         parts.append("</ul></nav>")
 
     # 正文
@@ -977,9 +1135,9 @@ def md_to_html(md_text, output_path):
             if lvl <= 2:
                 anchor = f"sec-{h_idx}"
                 h_idx += 1
-                parts.append(f"<h{min(lvl,6)} id=\"{anchor}\">{_inline_to_html(txt)}</h{min(lvl,6)}>")
+                parts.append(f'<h{min(lvl, 6)} id="{anchor}">{_inline_to_html(txt)}</h{min(lvl, 6)}>')
             else:
-                parts.append(f"<h{min(lvl,6)}>{_inline_to_html(txt)}</h{min(lvl,6)}>")
+                parts.append(f"<h{min(lvl, 6)}>{_inline_to_html(txt)}</h{min(lvl, 6)}>")
         elif typ == "para":
             parts.append(f"<p>{_inline_to_html(payload)}</p>")
         elif typ == "list":
@@ -995,12 +1153,14 @@ def md_to_html(md_text, output_path):
             parts.append(f"<pre><code>{_escape_html(payload)}</code></pre>")
         elif typ == "image":
             alt, fmt, b64 = payload
-            parts.append(f"<img src=\"data:image/{fmt};base64,{b64}\" alt=\"{alt}\">")
+            parts.append(f'<img src="data:image/{fmt};base64,{b64}" alt="{alt}">')
         elif typ == "table":
             header, data = _parse_table_rows(payload)
             parts.append("<table>")
             if header:
-                parts.append("<thead><tr>" + "".join(f"<th>{_inline_to_html(c)}</th>" for c in header) + "</tr></thead>")
+                parts.append(
+                    "<thead><tr>" + "".join(f"<th>{_inline_to_html(c)}</th>" for c in header) + "</tr></thead>"
+                )
             parts.append("<tbody>")
             for row in data:
                 parts.append("<tr>" + "".join(f"<td>{_inline_to_html(c)}</td>" for c in row) + "</tr>")
@@ -1008,7 +1168,7 @@ def md_to_html(md_text, output_path):
         elif typ == "chart":
             svg = _chart_to_svg(payload)
             if svg:
-                parts.append(f"<div class=\"figure\">{svg}</div>")
+                parts.append(f'<div class="figure">{svg}</div>')
             else:
                 parts.append(f"<p><em>[图表: {payload.get('title', '')}]</em></p>")
     parts.append("</main>\n</body>\n</html>")
@@ -1020,7 +1180,7 @@ def md_to_html(md_text, output_path):
     return output_path
 
 
-def _escape_html(text):
+def _escape_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
@@ -1028,17 +1188,17 @@ def _escape_html(text):
 # PDF 渲染器 (reportlab, 封面/目录/页眉页脚 + Noto CJK + 高清图表)
 # ======================================================================
 
-def md_to_pdf(md_text, output_path):
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm, mm
+
+def md_to_pdf(md_text: str, output_path: str | Path) -> str | Path:
     from reportlab.lib import colors
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                    TableStyle, PageBreak, Image)
-    from reportlab.platypus.tableofcontents import TableOfContents
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
     from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfbase.pdfmetrics import registerFontFamily
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus.tableofcontents import TableOfContents
 
     blocks = _parse_blocks(md_text)
     title = _extract_title(blocks)
@@ -1046,7 +1206,7 @@ def md_to_pdf(md_text, output_path):
     # ---- 注册中文字体 (TrueType 轮廓) ----
     reg, bold, sreg, sbold = _resolve_pdf_fonts()
 
-    def _register(fname, path):
+    def _register(fname: str, path: str | None) -> str | None:
         try:
             if path and os.path.exists(path):
                 if path.lower().endswith(".ttc"):
@@ -1063,42 +1223,97 @@ def md_to_pdf(md_text, output_path):
     _serif = _register("CJKSerif", sreg) or _sans
     _serif_b = _register("CJKSerifBold", sbold) or _serif
 
-    try:
-        registerFontFamily("CJKSans", normal="CJKSans", bold="CJKSansBold",
-                           italic="CJKSans", boldItalic="CJKSansBold")
-    except Exception:
-        pass
-    try:
-        registerFontFamily("CJKSerif", normal="CJKSerif", bold="CJKSerifBold",
-                           italic="CJKSerif", boldItalic="CJKSerifBold")
-    except Exception:
-        pass
+    with contextlib.suppress(Exception):
+        registerFontFamily("CJKSans", normal="CJKSans", bold="CJKSansBold", italic="CJKSans", boldItalic="CJKSansBold")
+    with contextlib.suppress(Exception):
+        registerFontFamily(
+            "CJKSerif", normal="CJKSerif", bold="CJKSerifBold", italic="CJKSerif", boldItalic="CJKSerifBold"
+        )
 
     # ---- 样式 ----
     styles = getSampleStyleSheet()
     body_font = "CJKSans" if "CJKSans" in pdfmetrics.getRegisteredFontNames() else "Helvetica"
     heading_font = body_font
 
-    styles.add(ParagraphStyle("CNTitle", fontName=heading_font, fontSize=26, leading=34,
-                              textColor=colors.white, alignment=1, spaceAfter=12))
-    styles.add(ParagraphStyle("CNH1", fontName=heading_font, fontSize=18, leading=26,
-                              textColor=colors.HexColor("#1e3a8a"), spaceBefore=18, spaceAfter=10))
-    styles.add(ParagraphStyle("CNH2", fontName=heading_font, fontSize=15, leading=22,
-                              textColor=colors.HexColor("#2563eb"), spaceBefore=14, spaceAfter=8))
-    styles.add(ParagraphStyle("CNH3", fontName=heading_font, fontSize=13, leading=20,
-                              textColor=colors.HexColor("#334155"), spaceBefore=10, spaceAfter=6))
-    styles.add(ParagraphStyle("CNBody", fontName=body_font, fontSize=10.5, leading=18,
-                              textColor=colors.HexColor("#334155"), spaceAfter=8))
-    styles.add(ParagraphStyle("CNList", fontName=body_font, fontSize=10.5, leading=18,
-                              leftIndent=16, bulletIndent=4, spaceAfter=4,
-                              textColor=colors.HexColor("#334155")))
-    styles.add(ParagraphStyle("CNQuote", fontName=body_font, fontSize=10, leading=16,
-                              leftIndent=14, textColor=colors.HexColor("#64748b"),
-                              borderPadding=8, backColor=colors.HexColor("#f8fafc"),
-                              borderColor=colors.HexColor("#0ea5e9"), borderWidth=0, spaceAfter=10))
+    styles.add(
+        ParagraphStyle(
+            "CNTitle",
+            fontName=heading_font,
+            fontSize=26,
+            leading=34,
+            textColor=colors.white,
+            alignment=1,
+            spaceAfter=12,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNH1",
+            fontName=heading_font,
+            fontSize=18,
+            leading=26,
+            textColor=colors.HexColor("#1e3a8a"),
+            spaceBefore=18,
+            spaceAfter=10,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNH2",
+            fontName=heading_font,
+            fontSize=15,
+            leading=22,
+            textColor=colors.HexColor("#2563eb"),
+            spaceBefore=14,
+            spaceAfter=8,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNH3",
+            fontName=heading_font,
+            fontSize=13,
+            leading=20,
+            textColor=colors.HexColor("#334155"),
+            spaceBefore=10,
+            spaceAfter=6,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNBody", fontName=body_font, fontSize=10.5, leading=18, textColor=colors.HexColor("#334155"), spaceAfter=8
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNList",
+            fontName=body_font,
+            fontSize=10.5,
+            leading=18,
+            leftIndent=16,
+            bulletIndent=4,
+            spaceAfter=4,
+            textColor=colors.HexColor("#334155"),
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "CNQuote",
+            fontName=body_font,
+            fontSize=10,
+            leading=16,
+            leftIndent=14,
+            textColor=colors.HexColor("#64748b"),
+            borderPadding=8,
+            backColor=colors.HexColor("#f8fafc"),
+            borderColor=colors.HexColor("#0ea5e9"),
+            borderWidth=0,
+            spaceAfter=10,
+        )
+    )
 
     # ---- 封面 / 页眉页脚回调 (局部函数, 闭包捕获 title/body_font) ----
-    def _draw_cover(canvas, doc_):
+    def _draw_cover(canvas: Any, doc_: Any) -> None:
         w, h = A4
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#1e3a8a"))
@@ -1111,7 +1326,7 @@ def md_to_pdf(md_text, output_path):
         canvas.drawCentredString(w / 2, h / 2 - 1.2 * cm, "Meerkat AI · 智能报告")
         canvas.restoreState()
 
-    def _draw_header_footer(canvas, doc_):
+    def _draw_header_footer(canvas: Any, doc_: Any) -> None:
         w, h = A4
         canvas.saveState()
         canvas.setFont(body_font, 8)
@@ -1122,8 +1337,8 @@ def md_to_pdf(md_text, output_path):
         canvas.drawCentredString(w / 2, 1.0 * cm, f"— {doc_.page} —")
         canvas.restoreState()
 
-    class DocTemplate(SimpleDocTemplate):
-        def afterFlowable(self, flowable):
+    class DocTemplate(SimpleDocTemplate):  # type: ignore[misc]
+        def afterFlowable(self, flowable: Any) -> None:
             if isinstance(flowable, Paragraph):
                 st = flowable.style.name
                 text = flowable.getPlainText()
@@ -1134,10 +1349,16 @@ def md_to_pdf(md_text, output_path):
                     self.canv.addOutlineEntry(text, key, level=lvl, closed=False)
                     self.notify("TOCEntry", (lvl, text, self.page, key))
 
-    doc = DocTemplate(output_path, pagesize=A4,
-                      leftMargin=2 * cm, rightMargin=2 * cm,
-                      topMargin=2.2 * cm, bottomMargin=2.2 * cm,
-                      title=title, author="Meerkat AI")
+    doc = DocTemplate(
+        output_path,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2.2 * cm,
+        bottomMargin=2.2 * cm,
+        title=title,
+        author="Meerkat AI",
+    )
 
     story = []
     # 封面独占第一页
@@ -1191,7 +1412,10 @@ def md_to_pdf(md_text, output_path):
             rows = ([header] if header else []) + data
             if rows:
                 ncols = max(len(r) for r in rows)
-                tdata = [[Paragraph(_inline_to_pdf(r[ci] if ci < len(r) else ""), styles["CNBody"]) for ci in range(ncols)] for r in rows]
+                tdata = [
+                    [Paragraph(_inline_to_pdf(r[ci] if ci < len(r) else ""), styles["CNBody"]) for ci in range(ncols)]
+                    for r in rows
+                ]
                 t = Table(tdata, colWidths=[(17 * cm) / ncols] * ncols)
                 style = [
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
@@ -1219,12 +1443,12 @@ def md_to_pdf(md_text, output_path):
     return output_path
 
 
-def _escape(text):
+def _escape(text: str) -> str:
     """转义 reportlab 的 XML 特殊字符。"""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _inline_to_pdf(text):
+def _inline_to_pdf(text: str) -> str:
     """Markdown 行内样式 → ReportLab Paragraph 标记与数学图片。"""
     text, math_images = _math_placeholders(text, "pdf")
     text = _escape(_strip_inline(text)) if text.count("**") % 2 else _escape(text)
@@ -1242,10 +1466,10 @@ def _inline_to_pdf(text):
 # DOCX 渲染器 (增强样式 + 图表 PNG 嵌入)
 # ======================================================================
 
-def md_to_docx(md_text, output_path):
+
+def md_to_docx(md_text: str, output_path: str | Path) -> str | Path:
     from docx import Document
-    from docx.shared import Pt, Inches, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Inches, Pt, RGBColor
 
     doc = Document()
     # 标题颜色
@@ -1259,6 +1483,7 @@ def md_to_docx(md_text, output_path):
             doc.add_paragraph(_strip_inline(payload))
         elif typ == "image":
             from docx.shared import Inches
+
             _alt, _fmt, b64 = payload
             try:
                 doc.add_picture(io.BytesIO(base64.b64decode(b64)), width=Inches(5.5))
@@ -1294,7 +1519,7 @@ def md_to_docx(md_text, output_path):
                     doc.add_picture(io.BytesIO(png), width=Inches(6.0))
                 except Exception:
                     doc.add_paragraph(payload.get("title", "[图表]"))
-    doc.save(output_path)
+    doc.save(str(output_path))
     return output_path
 
 
@@ -1302,14 +1527,14 @@ def md_to_docx(md_text, output_path):
 # 统一入口
 # ======================================================================
 
-_FORMATS = {
+_FORMATS: dict[str, Callable[[str, str | Path], str | Path]] = {
     "html": md_to_html,
     "docx": md_to_docx,
     "pdf": md_to_pdf,
 }
 
 
-def convert(fmt, md_text, output_path):
+def convert(fmt: str, md_text: str, output_path: str | Path) -> str | Path:
     """统一转换入口: convert('html'|'docx'|'pdf', markdown_text, output_path)。"""
     fmt = fmt.lower().lstrip(".")
     if fmt not in _FORMATS:

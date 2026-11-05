@@ -30,9 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     result = build_report(workspace)
     if args.json:
         out_path = Path(args.json)
-        out_path.write_text(
-            json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"JSON 结果已写入: {out_path}")
     print(format_human(result))
     return 0

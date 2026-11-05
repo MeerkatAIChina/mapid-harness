@@ -20,9 +20,7 @@ def test_extract_refs_from_table_cells():
 def test_parse_reference_section_title_variants():
     for title in ("## 本章参考资料", "## 参考资料", "## 参考文献"):
         text = f"正文[1]\n{title}\n[1] 欧普照明《2024年报》，2025，https://x\n"
-        assert parse_reference_section(text) == {
-            1: "欧普照明《2024年报》，2025，https://x"
-        }
+        assert parse_reference_section(text) == {1: "欧普照明《2024年报》，2025，https://x"}
 
 
 def test_parse_reference_section_missing_returns_empty():

@@ -56,7 +56,7 @@ def strip_reference_section(chapter_text: str) -> str:
     m = _REFERENCE_HEADING_RE.search(chapter_text)
     if m is None:
         return chapter_text
-    rest = chapter_text[m.end():]
+    rest = chapter_text[m.end() :]
     next_heading = re.search(r"^#{1,3}\s", rest, re.MULTILINE)
     end = m.end() + next_heading.start() if next_heading else len(chapter_text)
     return chapter_text[: m.start()] + chapter_text[end:]
