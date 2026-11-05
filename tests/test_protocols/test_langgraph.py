@@ -180,6 +180,33 @@ class TestStream:
         assert [chunk["content"] for chunk in chunks if chunk["type"] == "token"] == ["VISIBLE ANSWER"]
 
     @pytest.mark.asyncio
+    async def test_stream_skips_internal_verification_model_output(self) -> None:
+        """核验/审校等内部工序的模型输出（lc_source=verification）不得泄漏为公开 token。"""
+        internal_chunk = AIMessageChunk(content="VERIFICATION INTERNAL")
+        visible_chunk = AIMessageChunk(content="VISIBLE ANSWER")
+        graph = MagicMock()
+        graph.astream = self._make_astream(
+            [
+                {
+                    "type": "messages",
+                    "data": (
+                        internal_chunk,
+                        {"langgraph_node": "model", "lc_source": "verification"},
+                    ),
+                },
+                {
+                    "type": "messages",
+                    "data": (visible_chunk, {"langgraph_node": "model"}),
+                },
+            ]
+        )
+
+        protocol = _make_protocol(graph)
+        chunks = [chunk async for chunk in protocol.stream([HumanMessage(content="hi")], {})]
+
+        assert [chunk["content"] for chunk in chunks if chunk["type"] == "token"] == ["VISIBLE ANSWER"]
+
+    @pytest.mark.asyncio
     async def test_real_deepagents_compaction_only_streams_final_answer(self) -> None:
         """Regression: a real summary call runs, but only the main answer is public."""
         from deepagents import create_deep_agent

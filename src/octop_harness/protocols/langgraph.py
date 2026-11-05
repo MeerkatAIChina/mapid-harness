@@ -13,7 +13,9 @@ from octop_harness.protocols.base import ChatProtocol
 from octop_harness.protocols.think_splitter import ThinkSplitter
 from octop_harness.usage import normalize_usage_metadata
 
-_INTERNAL_LC_SOURCES = frozenset({"summarization"})
+# summarization：LangChain 对话压缩；verification：R4 核验/审校/出口核实等内部工序
+# （这些模型调用发生在工具中间件内部，其 token 不属于用户可见回复）
+_INTERNAL_LC_SOURCES = frozenset({"summarization", "verification"})
 
 
 def _is_internal_model_stream(metadata: Any) -> bool:

@@ -31,6 +31,9 @@ _SENT_SPLIT_RE = re.compile(r"(?<=[。！？!?\n])")
 _NUM_CLAIM_RE = re.compile(r"\d")
 
 DEFAULT_TIMEOUT_S = 120.0
+# 内部工序（核验/审校/出口核实）的模型调用标记：LangGraph messages 流会携带该 metadata，
+# 协议层按 lc_source=verification 过滤，防止内部输出泄漏为用户可见回复（round-6 后端 bug⑤）。
+INTERNAL_STREAM_CONFIG: dict[str, Any] = {"metadata": {"lc_source": "verification"}}
 EXTRACT_MAX_TOKENS = 2000  # 抽取输出封顶：正常一章承重断言仅几百 token（防 temp=0 重复循环烧满窗口）
 MAX_RETRIES = 2  # 有限重试（指数退避 1s/2s）
 SAMPLE_PER_CHAPTER = 3  # 一般数值抽检上限（设计裁量）
@@ -131,6 +134,7 @@ async def extract_loadbearing_assertions(
             temperature=0,
             timeout_s=DEFAULT_TIMEOUT_S,
             max_tokens=EXTRACT_MAX_TOKENS,
+            config=INTERNAL_STREAM_CONFIG,
         )
         try:
             data = _parse_json(raw)
@@ -215,6 +219,7 @@ async def verify_assertion(
         response_format="json",
         temperature=0,
         timeout_s=DEFAULT_TIMEOUT_S,
+        config=INTERNAL_STREAM_CONFIG,
     )
     data = _parse_json(raw)
     result = str(data.get("verdict", "unverifiable"))
@@ -259,6 +264,7 @@ async def with_retry(
 
 
 __all__ = [
+    "INTERNAL_STREAM_CONFIG",
     "KEYWORD_RE",
     "Verdict",
     "assertion_key",

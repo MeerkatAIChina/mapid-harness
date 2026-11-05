@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from octop_harness.middleware.verification import DEFAULT_TIMEOUT_S
+from octop_harness.middleware.verification import DEFAULT_TIMEOUT_S, INTERNAL_STREAM_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,7 @@ async def run_review(chapter_text: str, model_access: Any) -> tuple[list[Edit], 
         response_format="json",
         temperature=0,
         timeout_s=DEFAULT_TIMEOUT_S,
+        config=INTERNAL_STREAM_CONFIG,
     )
     return parse_review_response(raw)
 

@@ -38,6 +38,7 @@ from langgraph.types import Command
 
 from octop_harness.middleware.review_chain import apply_edits, run_review
 from octop_harness.middleware.verification import (
+    INTERNAL_STREAM_CONFIG,
     Verdict,
     assertion_key,
     extract_loadbearing_assertions,
@@ -496,6 +497,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
             response_format="json",
             temperature=0,
             timeout_s=120.0,
+            config=INTERNAL_STREAM_CONFIG,
         )
         cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
         data = json.loads(cleaned[cleaned.find("{") :])
