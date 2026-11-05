@@ -1,0 +1,18 @@
+{
+ "chapters": {
+  "01_研究背景.md": {
+   "status": "unevaluated",
+   "verified": "unchecked",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  }
+ },
+ "merge_rounds": 0,
+ "infra_streak": 0,
+ "verify_aborted": false
+}

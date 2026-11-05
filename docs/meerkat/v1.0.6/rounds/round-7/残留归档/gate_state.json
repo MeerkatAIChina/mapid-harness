@@ -1,0 +1,57 @@
+{
+ "chapters": {
+  "01_研究背景.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": [
+    "欧普照明2023年归母净利润9.24亿元。",
+    "欧普照明2025年全年销售毛利率39.10%。",
+    "2025年中国LED下游应用市场规模5056亿元，同比微降0.4%。",
+    "欧普照明经营现金流净额连续三年下滑，2025年6.90亿元，同比降15.78%。",
+    "欧普照明2025年应收账款余额8.24亿元，同比增长15.89%。",
+    "表 1-3 的一个重要发现是样本的信息丰度极不均衡。",
+    "第二，2025 年利润持平靠的是管理费用同比下降 19.70%、销售费用同比下降 6.00%[1]，属于典型的成本端腾挪，不可持续。"
+   ]
+  },
+  "02_行业全景.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": [
+    "反过来，佛山照明通过收购国星光电切入封装、收购燎旺车灯切入车灯，木林森通过封装与朗德万斯切入海外品牌，正是在补这条第二曲线——尽管补得好不好是另一回事。",
+    "2025年中国LED半导体照明行业总产值6093亿元，同比-1.1%",
+    "2025年中国LED下游应用市场规模5056亿元，同比-0.4%",
+    "下游成品企业平均产能利用率约50%",
+    "2021年LED渗透率约80%",
+    "佛山照明通过收购国星光电切入封装",
+    "欧普照明主营业务毛利率39.10%",
+    "## 2.4 供给端：3,600 家规上企业、35% 亏损面与 50% 产能利用率"
+   ]
+  },
+  "03_欧普照明深度剖析.md": {
+   "status": "unevaluated",
+   "verified": "unchecked",
+   "reviewed": false,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  }
+ },
+ "merge_rounds": 0,
+ "infra_streak": 0,
+ "verify_aborted": false
+}
