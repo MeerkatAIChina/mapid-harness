@@ -1,0 +1,172 @@
+{
+ "chapters": {
+  "01_研究背景.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "02_行业全景.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "03_欧普深度.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "04_竞争格局.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "05_竞品一.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "06_竞品二.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "07_竞品三.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "08_产品技术.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "09_渠道营销.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "10_智能照明.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "11_财务对标.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "12_SWOT.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "13_趋势研判.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "14_结论建议.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  },
+  "15_附录.md": {
+   "status": "clean",
+   "verified": "passed",
+   "reviewed": true,
+   "exit_granted": false,
+   "repair_rounds": 0,
+   "extend_rounds": 0,
+   "findings": [],
+   "verify_findings": [],
+   "verify_notes": []
+  }
+ },
+ "merge_rounds": 2,
+ "infra_streak": 0,
+ "verify_aborted": false
+}
