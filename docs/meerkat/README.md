@@ -26,11 +26,11 @@ docs/meerkat/
    - `plans/`       —— 把设计文档拆成可执行的 Task 序列，回答「按什么顺序、用什么步骤实现」，每个 Task 含文件清单、接口契约、测试与提交步骤，checkbox 逐项追踪进度；须经评审通过后方可动工，执行中的完成状态实时回写本文件。
    - `ADR.md`       —— 只记「关键取舍」，每条含背景、决策、被否决方案及原因、后果；
    - `CHANGELOG.md` —— 相对上一版本的全部变更（Added/Changed/Fixed/Known Issues），core 内核缝改动单独标注并指回 ADR。
-3. **与 Octop Harness 自身文档的边界**。`docs/meerkat/` 之外的文档属于 Octop Harness，保持与上游字节一致；Meerkat 的所有文档只写在本目录下，保证 `update-qm` 合并上游时零冲突。
+3. **与 Octop Harness 自身文档的边界**。`docs/meerkat/` 之外的文档属于 Octop Harness，保持与上游字节一致；Meerkat 的所有文档只写在本目录下，保证合并上游时零冲突。
 4. **分支约定**：
    1. `main` 只用于跟随上游主仓升级，保持与 upstream 可快进合并的状态，**二开成果一律不合并回 `main`**；
    2. **`meerkat` 分支作为我们自己的生产环境发布分支**，不允许在这个分支进行开发、提交代码等操作。
-   3. 所有二开开发在功能分支（如 `feature/meerkat-dev`）上进行，上游同步由 `update-qm` 向功能分支合并 upstream/main；
+   3. 所有二开开发在功能分支（如 `feature/meerkat-dev`）上进行。
 
 5. **设计文档与实现的一致性**。实现过程中对设计的偏离，必须回写 `设计文档.md`（冻结前）或在 `ADR.md` 补一条新决策（冻结后），不允许代码与文档长期分岔；执行计划与实际顺序的偏离同理，回写 `执行计划.md`。
 
