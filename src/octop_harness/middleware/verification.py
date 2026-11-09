@@ -228,19 +228,41 @@ async def verify_assertion(
     return Verdict(result, evidence_url=evidence_url, reason=str(data.get("reason", "")))
 
 
-def is_acknowledged(assertion: str, body_text: str) -> bool:
-    """查无实证断言是否已按降级处置（标注 [待核实]）。
+_REF_RE = re.compile(r"\[(\d{1,3})\]")  # 正文/断言里的来源编号 [n]
+_REGISTERED_REF_RE = re.compile(r"^\|\s*(\d{1,3})\s*\|", re.M)  # 台账登记表首列数字行
 
-    两层判定：断言自带标注；或正文存在同事实的已标注句——共享 ≥2 位数字串
-    或同一承重关键词（终审复验补修：台账反查断言的字符串不含正文标注，
-    只看自身永远出不了队，需按事实匹配正文）。
+
+def _registered_refs(ledger_text: str) -> set[str]:
+    """台账引用编号登记表里的已登记编号（指标台账首列是中文指标名，不会误中）。"""
+    return set(_REGISTERED_REF_RE.findall(ledger_text))
+
+
+def is_acknowledged(assertion: str, body_text: str, ledger_text: str = "") -> bool:
+    """查无实证断言是否已结案（降级标注 [待核实]，或凭台账来源编号）。
+
+    三层判定：断言自带标注；断言/正文同事实句带已登记来源编号 [n]
+    （round-8 实证：查无实证的主体是「有台账来源、外部检索未命中」，
+    逐条虚假降级违反数据红线，编号在登记表内即凭台账结案，裁决仍留痕）；
+    或正文存在同事实的已标注句——共享 ≥2 位数字串或同一承重关键词
+    （终审复验补修：台账反查断言的字符串不含正文标注，需按事实匹配正文）。
     """
     if PENDING_MARK in assertion:
         return True
-    marked = [s for s in _split_sentences(body_text) if PENDING_MARK in s]
+    registered = _registered_refs(ledger_text) if ledger_text else set()
+    if registered and any(r in registered for r in _REF_RE.findall(assertion)):
+        return True
     digits = re.findall(r"\d{2,}", assertion)
     kw = KEYWORD_RE.search(assertion)
-    return any(any(d in s for d in digits) or (kw is not None and kw.group(0) in s) for s in marked)
+
+    def same_fact(s: str) -> bool:
+        return any(d in s for d in digits) or (kw is not None and kw.group(0) in s)
+
+    for s in _split_sentences(body_text):
+        if PENDING_MARK in s and same_fact(s):
+            return True
+        if registered and same_fact(s) and any(r in registered for r in _REF_RE.findall(s)):
+            return True
+    return False
 
 
 async def with_retry(

@@ -648,15 +648,18 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
         st.verified = "unchecked"
         st.verify_findings = []
         st.verify_notes = []
+        ledger = self._ledger_text()  # 整章核验共用一份台账（编号登记表 + 抽取上下文）
         try:
             chapter_text = (self._workspace / "chapters" / chapter).read_text(encoding="utf-8")
             body = strip_reference_section(chapter_text)  # 参考资料节不是断言，不参与抽取/抽检
             extracted = await with_retry(
-                lambda: extract_loadbearing_assertions(body, self._ledger_text(), self._model_access),
+                lambda: extract_loadbearing_assertions(body, ledger, self._model_access),
                 backoff_s=self._verify_backoff,
             )
             # 审校回流疑点优先核验；版式碎片（表格行/标题）不进入核验（round-7 M2）
-            assertions = self._read_doubts(chapter) + [a for a in extracted if not is_junk_assertion(a)]
+            doubts = self._read_doubts(chapter)
+            doubt_set = set(doubts)
+            assertions = doubts + [a for a in extracted if not is_junk_assertion(a)]
             assertions += [
                 a for a in sample_numeric_claims(body, assertions, rng=self._rng) if not is_junk_assertion(a)
             ]
@@ -752,10 +755,22 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                         "message": f"承重断言证伪：{a}（证据 {v.evidence_url or '无'}：{v.reason}）",
                     }
                 )
-            # 已按降级处置（断言自带标注，或正文存在同事实标注句——
-            # 台账反查断言按正文出队，终审复验补修）不计入待处理
-            elif v.result == "unverifiable" and not is_acknowledged(a, body):
-                st.verify_notes.append(a)
+            # 已结案（降级标注，或凭台账已登记来源编号——round-8 实证：查无实证
+            # 主体是「有源未中」，虚假降级违反数据红线）不计入待处理
+            elif v.result == "unverifiable" and not is_acknowledged(a, body, ledger):
+                if a in doubt_set:
+                    # 审校回流疑点是元评论（「请核对/需核实」），judge 判不动；
+                    # 不占断言待处理名额卡 merge，留痕供人工/R5 处置（round-8 实证）
+                    self._log_verification(
+                        {
+                            "type": "doubt_unresolved",
+                            "chapter": chapter,
+                            "assertion": a,
+                            "reason": v.reason,
+                        }
+                    )
+                else:
+                    st.verify_notes.append(a)
         st.verified = "failed" if st.verify_findings else "passed"
 
     async def _verify_touchpoint(
@@ -984,6 +999,7 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                 hard: list[str] = []
                 # 终审修复 1b：诚实出口只豁免字数下限（_floor_finding），
                 # 核验/审校两道工序对出口章同样强制。
+                ledger = self._ledger_text()
                 for ch in self._all_workspace_chapters():
                     st = self._chapter_state(ch)
                     num = ch.split("_")[0]
@@ -995,9 +1011,18 @@ class ChapterGateMiddleware(AgentMiddleware[Any, Any]):
                     if not st.reviewed:
                         hard.append(f"第 {num} 章未审校")
                     if st.verify_notes:
-                        hard.append(
-                            f"第 {num} 章 {len(st.verify_notes)} 条断言查无实证未处理（降级表述或标注 [待核实] 后复测）"
-                        )
+                        # round-8 实证：存量 notes 是产出时的旧口径，已过章不重核
+                        # 不会重算——merge 前按现行结案规则（降级标注/台账凭证）
+                        # 对存量重新分类，有源未中出队，无源条目继续拦（ADR-002）
+                        body = strip_reference_section((self._workspace / "chapters" / ch).read_text(encoding="utf-8"))
+                        outstanding = [n for n in st.verify_notes if not is_acknowledged(n, body, ledger)]
+                        if len(outstanding) != len(st.verify_notes):
+                            st.verify_notes = outstanding
+                            self._persist_state()
+                        if outstanding:
+                            hard.append(
+                                f"第 {num} 章 {len(outstanding)} 条断言查无实证未处理（降级表述或标注 [待核实] 后复测）"
+                            )
                 for ch, reason in self._exit_rejected.items():
                     hard.append(f"第 {ch.split('_')[0]} 章出口举证被驳回：{reason}")
                 if hard:

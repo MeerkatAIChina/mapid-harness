@@ -825,6 +825,65 @@ async def test_ledger_assertion_cleared_when_body_marked(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
+# round-8 实证修复（2026-11-06）：台账来源编号 = 查无实证的结案凭证
+# 断言（或正文同事实句）带已登记编号 [n] → 已凭台账结案，不占待处理名额
+# ---------------------------------------------------------------------------
+
+LEDGER_WITH_REGISTRY = (
+    LEDGER
+    + """
+## 一、引用编号登记（ref registry）
+
+| ref | 来源条目 | 类型 | 数据期 |
+| --- | --- | --- | --- |
+| 1 | 欧普照明《2025年年度报告》，上海证券交易所 | A 法定披露 | 2025 年度 |
+"""
+)
+
+
+async def test_unverifiable_with_ledger_ref_passes_merge(tmp_path: Path) -> None:
+    """round-8 实证：判决为查无实证的断言绝大多数是「有台账来源、检索未命中」，
+    逐条打 [待核实] = 虚假降级。修复后：编号在登记表内即结案，merge 放行。"""
+    ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ}, ledger=LEDGER_WITH_REGISTRY)
+    mw = ChapterGateMiddleware(ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok)
+    mw._verify_backoff = 0
+    await _stats(mw, f"chapters/{UNVERIFIABLE_CH}")
+    assert mw._chapters[UNVERIFIABLE_CH].verify_notes == []
+    ok = await _merge_call(mw)
+    assert ok.status != "error"
+
+
+async def test_merge_reclassifies_legacy_notes_with_ledger_ref(tmp_path: Path) -> None:
+    """round-8 实证：旧逻辑落盘的存量 verify_notes（带登记编号）因「已过章不重复核」
+    不会重算，merge 闸若只看存量将永久卡闸。修复后：merge 按现行凭证规则
+    对存量 notes 重新分类，有源未中出队放行（无源条目继续拦）。"""
+    ws = make_ws(tmp_path, {UNVERIFIABLE_CH: CHAPTER_ACQ}, ledger=LEDGER_WITH_REGISTRY)
+    (ws / "gate_state.json").write_text(
+        json.dumps(
+            {
+                "chapters": {
+                    UNVERIFIABLE_CH: {
+                        "status": "clean",
+                        "verified": "passed",
+                        "reviewed": True,
+                        "verify_notes": [ACQ_SENTENCE, "某企业 2025 年营收 999 亿元，无任何编号。"],
+                    }
+                },
+                "merge_rounds": 0,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    mw = ChapterGateMiddleware(ws, model_access=_UnverifiableModel(), verify_search=_search_ok, verify_fetch=_fetch_ok)
+    mw._verify_backoff = 0
+    blocked = await _merge_call(mw)
+    assert blocked.status == "error"
+    assert "1 条断言查无实证未处理" in blocked.content  # 有源条目出队，无源条目继续拦
+    assert mw._chapters[UNVERIFIABLE_CH].verify_notes == ["某企业 2025 年营收 999 亿元，无任何编号。"]
+
+
+# ---------------------------------------------------------------------------
 # round-7 实证修复（2026-11-05）：核验成本失控
 # F1 已过章不重复核；F2 断言级判定缓存；F3 垃圾断言过滤 + 章级总量封顶
 # ---------------------------------------------------------------------------

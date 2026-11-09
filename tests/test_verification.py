@@ -351,3 +351,77 @@ def test_assertion_key_normalizes_whitespace() -> None:
 
     assert assertion_key("欧普照明 2020 年上市") == assertion_key("欧普照明  2020\n年上市")
     assert assertion_key("2020 年上市") != assertion_key("2021 年上市")
+
+
+# ---------------------------------------------------------------------------
+# round-8 实证修复（2026-11-06）：台账来源编号 = 查无实证的结案凭证
+# ---------------------------------------------------------------------------
+
+LEDGER_REGISTRY = """# 数据台账
+
+## 一、引用编号登记（ref registry）
+
+| ref | 来源条目 | 类型 | 数据期 |
+| --- | --- | --- | --- |
+| 1 | 欧普照明《2025年年度报告》，上海证券交易所 | A 法定披露 | 2025 年度 |
+| 15 | 木林森股份有限公司《2025年年度报告》，巨潮资讯网 | A 法定披露 | 2025 年度 |
+
+## 二、核心指标台账
+
+| 指标名 | 数值 | 单位 | 口径/年份 | 来源 | 首现章节 | ref |
+| --- | --- | --- | --- | --- | --- | --- |
+| 中国照明产业规模 | 5,250 | 亿元 | 2025 年 | 中国照明电器协会 | 01 | 3 |
+"""
+
+
+def test_unverifiable_with_registered_ref_is_acknowledged() -> None:
+    """断言自带已登记编号 → 凭台账结案，不进 verify_notes。"""
+    from octop_harness.middleware.verification import is_acknowledged
+
+    a = "木林森2025年营收174.39亿元，归母净利润-14.77亿元[15]"
+    assert is_acknowledged(a, "无关正文。", LEDGER_REGISTRY)
+
+
+def test_unverifiable_with_unregistered_ref_still_blocks() -> None:
+    """编号未在台账登记（编号造假/漏登记）→ 不算凭证，继续卡。"""
+    from octop_harness.middleware.verification import is_acknowledged
+
+    a = "某企业 2025 年营收 999 亿元[42]。"
+    assert not is_acknowledged(a, "无关正文。", LEDGER_REGISTRY)
+
+
+def test_unverifiable_cleared_by_body_same_fact_ref() -> None:
+    """抽取版断言无编号，但正文同事实句带已登记编号 → 出队（round-8 主形态）。"""
+    from octop_harness.middleware.verification import is_acknowledged
+
+    a = "木林森2025年营收174.39亿元，归母净利润-14.77亿元"
+    body = "木林森 2025 年营收 174.39 亿元、同比 +3.13%、归母净利润 −14.77 亿元[15]。"
+    assert is_acknowledged(a, body, LEDGER_REGISTRY)
+
+
+def test_no_registry_keeps_old_behavior() -> None:
+    """台账无登记表（或没传台账）→ 编号不算凭证，维持原判定。"""
+    from octop_harness.middleware.verification import is_acknowledged
+
+    a = "欧普照明于 2019 年完成对某照明企业的重大收购[1]。"
+    assert not is_acknowledged(a, "无关正文。")
+    assert not is_acknowledged(a, "无关正文。", LEDGER_PLAIN)
+
+
+async def test_unverifiable_doubt_not_counted_as_note(tmp_path: Path) -> None:
+    """round-8 实证：审校回流疑点是元评论（「请核对/需核实」），judge 判不动 →
+    不得占「断言查无实证待处理」名额卡 merge，留痕 doubt_unresolved 即可。"""
+    ws = make_ws(tmp_path, {CH: CLEAN_TEXT})
+    doubt = "术语表说明「按拼音排序」，但条目顺序与拼音明显不符，请确认。"
+    (ws / "verification_queue.jsonl").write_text(
+        json.dumps({"chapter": CH, "doubt": doubt}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    model = MockModel(judge_payload={"verdict": "unverifiable", "reason": "元评论无法外部核验"})
+    gate = make_gate(ws, model)
+    await _stats(gate, f"chapters/{CH}")
+    st = gate._chapters[CH]
+    assert doubt not in st.verify_notes
+    assert st.verified == "passed"
+    log = (ws / "verification_log.jsonl").read_text(encoding="utf-8")
+    assert "doubt_unresolved" in log
