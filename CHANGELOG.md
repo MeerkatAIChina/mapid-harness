@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 修复
-
-- 章节门禁核验成本失控（round-7 实证）：`report_stats` 复测不再对已通过核验且文本未编辑的章节整章重核（审校回流疑点未核的章除外）；断言判定按规范化文本落盘缓存（`verification_cache.json`），编辑触发的重核只核缓存未命中的断言；表格行/标题等版式碎片不再进入核验；单章核验断言总量封顶 40 条。
-- 合并闸门「查无实证」口径细化（round-8 实证，机制行为变更 → docs/meerkat/v1.0.6/ADR.md ADR-002）：带来源编号且编号已在 `data_ledger.md` 登记的未证实断言视为凭台账结案，不再要求逐条降级/标注（未登记编号仍拦截）；审校回流疑点被判未证实时不再占用合并待处理名额，改记 `doubt_unresolved` 留痕；merge 前对旧口径落盘的存量待处理条目按现行规则重新分类，避免已过章被旧条目永久卡闸。
-- 核验/审校/出口核实等内部工序的模型输出不再泄漏到聊天界面：内部调用统一携带 `lc_source=verification` 元数据，协议层按来源过滤（**core 内核缝** → docs/meerkat/v1.0.6/ADR.md ADR-001）。
-
 ## [1.0.7] - 2026-11-04
 
 ### 修复
@@ -80,7 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 工作区上下文复用 deepagents 原生 `MemoryMiddleware` 的读取、会话快照、提示词格式和缓存断点。加载器只包裹文件内容，`MEMORY.md` 写保护并入现有 `FilesystemGuardMiddleware`，移除单独的记忆规则模块。
 - 模型重试耗尽后抛出异常（`on_failure="error"`），由 checkpoint 与宿主记录失败；沿用原有重试判定、次数与退避。团队任务捕获 SDK 异常并释放任务锁；自动失败通知不进入记忆采集。
->>>>>>> main
 
 ## [1.0.3] - 2026-10-14
 
